@@ -416,6 +416,12 @@ main>*{min-width:0}
 .zoom p{color:#fff;font-weight:600;text-align:center;max-width:40ch}
 .zoom-x{position:absolute;top:max(14px,env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:1.1rem;font-weight:800}
 
+/* live walk map */
+.wmapbox{position:relative;border-radius:var(--r);overflow:hidden;background:var(--map);box-shadow:0 1px 2px rgba(60,15,22,.05),0 10px 28px -14px rgba(60,15,22,.18)}
+.wmark{transition:opacity .4s}.wmark.passed{opacity:.3}
+@keyframes youpulse{0%{transform:scale(.6);opacity:.45}100%{transform:scale(1.6);opacity:0}}
+.youpulse{transform-box:fill-box;transform-origin:center;animation:youpulse 1.6s ease-out infinite}
+
 /* motion: views rise in once per navigation; nothing loops */
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes navpop{from{transform:scale(.88)}to{transform:none}}
@@ -713,7 +719,7 @@ function boxHTML(h,box){let x,y,w,hh;
    memory as a blob URL (which supports jumping anywhere) and redraw any video already on screen. */
 const VIDEO_SRC="media/klangjaya_walk.mp4";let videoBlob=null;
 const mediaSrc=m=>m===VIDEO_SRC&&videoBlob?videoBlob:m;
-fetch(VIDEO_SRC).then(r=>r.ok?r.blob():Promise.reject()).then(b=>{videoBlob=URL.createObjectURL(b);
+if(window.fetch)fetch(VIDEO_SRC).then(r=>r.ok?r.blob():Promise.reject()).then(b=>{videoBlob=URL.createObjectURL(b);
   if(document.querySelector('video[src="'+VIDEO_SRC+'"]')&&S.user)render();}).catch(()=>{});
 let P={route:null,t:0,playing:false,raf:0,last:0};
 function playerHTML(r){
@@ -1373,12 +1379,47 @@ function walkMarks(p,startNode){
   });
   return marks.sort((a,b)=>a.at-b.at);
 }
+/* the walking pieces of a trip, each with its map points in walking order and its length in metres */
+function walkSegs(p,startNode){
+  const segs=[];let node=startNode;
+  p.edges.forEach(e=>{const fwd=e.a===node;node=fwd?e.b:e.a;if(e.train)return;const r=route(e.route);
+    segs.push({pts:fwd?r.pts:r.pts.slice().reverse(),len:r.len});});
+  return segs;
+}
+/* map position after walking dist metres, plus every map point already passed (for the walked line) */
+function walkPos(dist){
+  const done=[];let left=dist;
+  for(const sg of WALK.segs){
+    if(left<=sg.len){const f=sg.len?left/sg.len:1,at=polyAt(sg.pts,f);
+      let tot=0;const seg=[];for(let i=1;i<sg.pts.length;i++){const d=Math.hypot(sg.pts[i][0]-sg.pts[i-1][0],sg.pts[i][1]-sg.pts[i-1][1]);seg.push(d);tot+=d;}
+      let acc=0;done.push(sg.pts[0]);for(let i=1;i<sg.pts.length;i++){acc+=seg[i-1];if(acc/tot<f)done.push(sg.pts[i]);else break;}
+      done.push(at);return {at,done};}
+    done.push(...sg.pts);left-=sg.len;
+  }
+  const last=WALK.segs[WALK.segs.length-1].pts;return {at:last[last.length-1],done};
+}
+/* live map of the walk: it follows you, showing the route, the part already walked, hazards and the destination.
+   WMAP_W is how many map units fit across, so the camera stays zoomed in on a phone. */
+const WMAP_W=260,WMAP_H=WMAP_W*0.8;
+const wmapBox=at=>`${at[0]-WMAP_W/2} ${at[1]-WMAP_H/2} ${WMAP_W} ${WMAP_H}`;
+function walkMapHTML(){
+  const all=WALK.segs.flatMap(s=>s.pts),line=all.map(q=>q.join(",")).join(" "),end=all[all.length-1],pos=walkPos(WALK.dist);
+  const save={...MV};MV={x:pos.at[0]-WMAP_W/2,y:pos.at[1]-WMAP_H/2,w:WMAP_W};
+  const out=`<svg id="wmap" viewBox="${wmapBox(pos.at)}" role="img" aria-label="Live map of your walk" style="width:100%;height:auto;display:block">${mapBase()}
+    <polyline points="${line}" fill="none" stroke="var(--surface)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="${line}" fill="none" stroke="var(--faint)" stroke-width="2.2" stroke-dasharray="5 4" stroke-linecap="round"/>
+    <polyline id="wDone" points="${pos.done.map(q=>q.join(",")).join(" ")}" fill="none" stroke="var(--brand)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    ${WALK.marks.map((m,i)=>{const q=hxy(m.h);return `<g class="wmark" id="wm${i}"><circle cx="${q[0]}" cy="${q[1]}" r="6" fill="${m.h.sev==="danger"?"var(--danger)":"var(--warn)"}" stroke="var(--surface)" stroke-width="1.6"/><text x="${q[0]}" y="${q[1]+2.6}" text-anchor="middle" font-size="7.5" font-weight="900" fill="#fff">!</text></g>`;}).join("")}
+    <g><circle cx="${end[0]}" cy="${end[1]}" r="7" fill="var(--ok)" stroke="var(--surface)" stroke-width="2"/><text x="${end[0]}" y="${end[1]-10}" text-anchor="middle" font-size="8" font-weight="800" fill="var(--fg)" paint-order="stroke" stroke="var(--map)" stroke-width="2.5">${esc(WALK.to.replace(/^LRT /,"").split(" (")[0])}</text></g>
+    <g id="wYou" transform="translate(${pos.at[0]} ${pos.at[1]})"><circle r="13" fill="var(--you)" opacity=".2" class="youpulse"/><circle r="6" fill="var(--you)" stroke="#fff" stroke-width="2"/></g></svg>`;
+  MV=save;return out;
+}
 function startWalk(kind){
   const plan=planRoutes();if(plan.none)return;
   const p=kind==="fastest"?plan.fastest:plan.safest;
   if(!p.walkM){toast("No walking on this trip. Take the LRT.");return;}
   const speed=S.nav.modes.wheel?WHEEL_SPEED:WALK_SPEED;
-  WALK={kind,p,from:S.nav.from,to:S.nav.to,speed,marks:walkMarks(p,plan.a),dist:0,last:Date.now(),share:false,done:false};
+  WALK={kind,p,from:S.nav.from,to:S.nav.to,speed,marks:walkMarks(p,plan.a),segs:walkSegs(p,plan.a),dist:0,last:Date.now(),share:false,done:false};
   clearInterval(walkTimer);walkTimer=setInterval(tickWalk,250);
   S.tab="walk";save();render();window.scrollTo(0,0);
 }
@@ -1399,12 +1440,18 @@ function drawWalk(){
   $("#wDist").textContent=st.dist;$("#wSteps").textContent=st.steps.toLocaleString("en-MY");$("#wKcal").textContent=st.kcal;
   $("#wBar").style.width=(WALK.dist/WALK.p.walkM*100)+"%";
   $("#wNext").innerHTML=upcomingHTML();
+  const pos=walkPos(WALK.dist),you=$("#wYou"),done=$("#wDone");
+  if(you)you.setAttribute("transform",`translate(${pos.at[0]} ${pos.at[1]})`);
+  const wm=$("#wmap");if(wm)wm.setAttribute("viewBox",wmapBox(pos.at));
+  if(done)done.setAttribute("points",pos.done.map(q=>q.join(",")).join(" "));
+  WALK.marks.forEach((m,i)=>{const g=$("#wm"+i);if(g)g.classList.toggle("passed",m.at<=WALK.dist);});
 }
 function walkView(){
   if(!WALK){S.tab="navigate";return navigateView();}
   return `<div><button class="btn sm ghost" data-tab="navigate">← Navigate</button></div>
   <section class="walkhead"><span class="chip ${WALK.kind==="fastest"?"c-brand":"c-ok"}">${WALK.kind==="fastest"?"Fastest":"Safest"} route</span><h1>Walking to ${esc(WALK.to)}</h1>
    <div class="bar"><i id="wBar"></i></div></section>
+  <section class="wmapbox">${walkMapHTML()}<span class="m-badge">Live position · demo, simulated GPS</span></section>
   <div class="wstats"><div class="kpi"><div class="n mono" id="wTime">0:00</div><div class="l">Time</div></div><div class="kpi"><div class="n mono"><span id="wDist">0</span> m</div><div class="l">of ${WALK.p.walkM} m</div></div>
    <div class="kpi"><div class="n mono" id="wSteps">0</div><div class="l">Steps (estimate)</div></div><div class="kpi"><div class="n mono" id="wKcal">0</div><div class="l">kcal (estimate)</div></div></div>
   <section class="panel"><h2>Coming up</h2><div id="wNext" class="list" style="gap:8px">${upcomingHTML()}</div></section>
