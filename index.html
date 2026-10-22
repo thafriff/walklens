@@ -497,6 +497,21 @@ td.acts{display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width
 td.rcol{min-width:130px}
 .wrap.adm .bh{grid-template-columns:minmax(120px,250px) 1fr 36px}
 
+/* pre-build audit */
+.pb-ctl{display:flex;flex-direction:column;gap:12px}
+.pb-ctl .field{max-width:360px}
+.pb-wrap{display:grid;gap:16px;align-items:start}
+@media (min-width:900px){.pb-wrap{grid-template-columns:300px 1fr}.pb-ctl .modes{flex-direction:column;align-items:flex-start}}
+.pbdot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.pb-plan{padding:10px}
+.pb-plan svg{border-radius:12px}
+.pbpin{animation:pbdrop .35s var(--ease) both;transform-box:fill-box;transform-origin:center bottom}
+@keyframes pbdrop{from{transform:translateY(-14px);opacity:0}to{transform:none;opacity:1}}
+.pb-sum{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+.pb-score{display:flex;gap:12px;align-items:center}
+.pb-sum .note{flex:1 1 300px}
+.mchip[disabled]{opacity:.6}
+
 /* motion: views rise in once per navigation; nothing loops */
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes navpop{from{transform:scale(.88)}to{transform:none}}
@@ -960,13 +975,14 @@ let lastKey="";
 function render(){
   cancelAnimationFrame(P.raf);
   closeReportSheet();closeZoom();killMaps();
+  if(PB.state==="running"&&S.tab!=="pre"){cancelAnimationFrame(PB.raf);PB.state="idle";}
   if(S.tab!=="walkdone")FAREEDIT=false;
   /* every hazard needs its community fields, including after "Reset demo data" swaps in fresh seed data */
   S.hazards.forEach(fillHazard);
   const app=$("#app");
   if(!S.user){lastKey="";app.innerHTML=loginView();return;}
   if(isAdmin()){
-    const tabs=[["dash","Dashboard"],["amap","Map"],["review","Review queue",S.hazards.filter(h=>h.status==="Pending review").length],["fix","Fix-first list"],["users","Users"]];
+    const tabs=[["dash","Dashboard"],["amap","Map"],["review","Review queue",S.hazards.filter(h=>h.status==="Pending review").length],["fix","Fix-first list"],["pre","Pre-build audit"],["users","Users"]];
     if(!S.tab||!tabs.some(t=>t[0]===S.tab))S.tab="dash";
     app.innerHTML=`<header class="top"><div class="wrap adm"><div class="top-row"><div class="logo"><span class="logo-mark" style="color:var(--brand-ink)">${ico.walk}</span>WalkLens <span class="faint" style="font-weight:600">Township console</span></div>
       <div class="who"><span class="role-pill">Admin</span><span class="muted">SDP Township Team</span><button class="btn sm" data-act="logout">Log out</button></div></div>
@@ -1037,6 +1053,7 @@ function adminView(){
     case "amap":mapRatio=0.5625;return `<div class="head"><div><h1>Township map</h1><p class="muted">Every audited route and AI finding. Pending findings are shown too.</p></div></div>${mapBlock("wide")}`;
     case "review":return reviewView();
     case "fix":return fixView();
+    case "pre":return preView();
     case "users":return usersView();
   }
   return "";
@@ -1768,6 +1785,79 @@ const BUDDIES={fastest:{n:3,when:"Friday at 12:45"},safest:{n:2,when:"Friday at 
    recommended route moves to the covered path via Bandar Bukit Tinggi. */
 const ALERT={route:"r1",text:"Flooding at the underpass, reported 10 min ago",extra:2000};
 
+/* ---------- pre-build audit (admin) ----------
+   A drawn township plan that AI residents "walk" from home to the LRT station, dropping a numbered pin
+   wherever the plan would make the walk hard. Results are simulated from the drawing below. The real
+   version would send the plan image to the Gemini vision API (from a server that holds the key) with
+   each persona's needs, and get back the problems and their positions on the plan. */
+const PB_PERSONAS=[
+  {id:"elder",name:"Elderly resident",color:"#1E7A4C",path:[[90,430],[90,340],[300,340],[300,262],[640,262],[640,150]],
+    issues:[{at:[300,340],issue:"1.1 km to the station with no seating or shade",fix:"Add three shaded benches along Jalan Precinct 3"}]},
+  {id:"wheel",name:"Wheelchair user",color:"#1D6FD8",path:[[190,440],[190,340],[300,340],[300,262],[640,262],[640,150]],
+    issues:[{at:[190,355],issue:"Kerb at the main gate has no ramp",fix:"Add a kerb ramp at the main gate"},{at:[640,185],issue:"Footbridge to the station has stairs only",fix:"Add a lift or ramp to the footbridge"}]},
+  {id:"student",name:"Student",color:"#6E4BB5",path:[[150,250],[230,250],[230,180],[420,180],[420,262],[640,262],[640,150]],
+    issues:[{at:[330,180],issue:"Back lane past the school has no street lighting",fix:"Light the lane with eight poles"}]},
+  {id:"friday",name:"Friday worshipper",color:"#C2410C",path:[[640,150],[640,262],[470,262],[470,400]],
+    issues:[{at:[470,262],issue:"Shortest way to the mosque crosses a 4-lane road with no crossing",fix:"Add a signalised crossing at the junction"}]},
+  {id:"parent",name:"Parent with stroller",color:"#B8337A",path:[[260,440],[260,340],[560,340],[560,262],[640,262],[640,150]],
+    issues:[{at:[560,320],issue:"Pavement narrows to 0.9 m at the shoplots",fix:"Widen the pavement to 1.8 m"},{at:[420,340],issue:"No shade along the park edge",fix:"Plant shade trees along the park"}]}
+];
+let PB={chosen:PB_PERSONAS.map(p=>p.id),state:"idle",t:0,raf:0};
+function pbPlanSVG(){
+  return `<svg id="pbplan" viewBox="0 62 800 438" role="img" aria-label="Township plan: homes, roads, LRT station, mosque, school and shops" style="width:100%;height:auto;display:block">
+  <rect width="800" height="500" fill="#E7F1E2"/>
+  <rect x="0" y="244" width="800" height="36" fill="#C8CFCB"/><line x1="0" y1="262" x2="800" y2="262" stroke="#fff" stroke-width="2" stroke-dasharray="14 10"/>
+  <rect x="0" y="92" width="800" height="10" fill="#7C6CC4"/><text x="16" y="86" font-size="13" font-weight="700" fill="#5B4BB5">LRT Shah Alam Line</text>
+  <g fill="#DDE3DF"><rect x="222" y="120" width="16" height="124"/><rect x="412" y="120" width="16" height="124"/><rect x="292" y="280" width="16" height="160"/><rect x="552" y="280" width="16" height="60"/><rect x="40" y="332" width="560" height="16"/><rect x="462" y="280" width="16" height="110"/></g>
+  <rect x="600" y="104" width="80" height="56" rx="8" fill="#5B4BB5"/><text x="640" y="138" text-anchor="middle" font-size="13" font-weight="800" fill="#fff">LRT station</text>
+  <rect x="268" y="130" width="120" height="44" rx="6" fill="#F3D9A4"/><text x="328" y="157" text-anchor="middle" font-size="13" font-weight="700" fill="#7A5A12">School</text>
+  <rect x="500" y="290" width="44" height="40" rx="4" fill="#F1C5C9"/><rect x="574" y="290" width="44" height="40" rx="4" fill="#F1C5C9"/><text x="560" y="314" text-anchor="middle" font-size="12" font-weight="700" fill="#8C2A35">Shops</text>
+  <rect x="440" y="392" width="64" height="52" rx="8" fill="#fff" stroke="#5B4BB5" stroke-width="2"/><text x="472" y="423" text-anchor="middle" font-size="12" font-weight="800" fill="#5B4BB5">Mosque</text>
+  <rect x="330" y="356" width="100" height="60" rx="10" fill="#B9DDB0"/><text x="380" y="391" text-anchor="middle" font-size="12" font-weight="700" fill="#2F6B2A">Park</text>
+  ${[0,1,2,3,4].map(c=>[0,1].map(r=>`<rect x="${40+c*55}" y="${370+r*50}" width="40" height="34" rx="4" fill="#E4D6C8"/>`).join("")).join("")}
+  <text x="40" y="490" font-size="12" font-weight="700" fill="#6B5A48">Homes · Precinct 3</text>
+  ${PB_PERSONAS.filter(p=>PB.chosen.includes(p.id)).map(p=>`<polyline points="${p.path.map(q=>q.join(",")).join(" ")}" fill="none" stroke="${p.color}" stroke-width="3" stroke-dasharray="6 6" opacity="${PB.state==="idle"?0:.55}"/>`).join("")}
+  <g id="pbpins">${PB.state==="done"?pbPins().map((x,i)=>pbPin(x,i)).join(""):""}</g>
+  <g id="pbwalkers">${PB.state!=="idle"?PB_PERSONAS.filter(p=>PB.chosen.includes(p.id)).map(p=>`<circle id="pbw-${p.id}" r="9" cx="${p.path[0][0]}" cy="${p.path[0][1]}" fill="${p.color}" stroke="#fff" stroke-width="3"/>`).join(""):""}</g></svg>`;
+}
+const pbPins=()=>PB_PERSONAS.filter(p=>PB.chosen.includes(p.id)).flatMap(p=>p.issues.map(x=>({...x,who:p.name,color:p.color})));
+const pbPin=(x,i)=>`<g class="pbpin"><circle cx="${x.at[0]}" cy="${x.at[1]}" r="13" fill="${x.color}" stroke="#fff" stroke-width="3"/><text x="${x.at[0]}" y="${x.at[1]+5}" text-anchor="middle" font-size="13" font-weight="900" fill="#fff">${i+1}</text></g>`;
+/* position along a path at fraction f (0 to 1), and how far along each issue sits */
+function pbAt(path,f){let tot=0;const seg=[];for(let i=1;i<path.length;i++){const d=Math.hypot(path[i][0]-path[i-1][0],path[i][1]-path[i-1][1]);seg.push(d);tot+=d;}
+  let left=Math.min(1,Math.max(0,f))*tot;for(let i=0;i<seg.length;i++){if(left<=seg[i]){const k=seg[i]?left/seg[i]:0;return [path[i][0]+(path[i+1][0]-path[i][0])*k,path[i][1]+(path[i+1][1]-path[i][1])*k];}left-=seg[i];}return path[path.length-1];}
+function pbFrac(path,pt){let tot=0,best=0,bd=1e9,acc=0;const seg=[];for(let i=1;i<path.length;i++){const d=Math.hypot(path[i][0]-path[i-1][0],path[i][1]-path[i-1][1]);seg.push(d);tot+=d;}
+  for(let i=1;i<path.length;i++){const a=path[i-1],b=path[i],L=seg[i-1]||1,k=Math.max(0,Math.min(1,((pt[0]-a[0])*(b[0]-a[0])+(pt[1]-a[1])*(b[1]-a[1]))/(L*L)));
+    const d=Math.hypot(a[0]+(b[0]-a[0])*k-pt[0],a[1]+(b[1]-a[1])*k-pt[1]);if(d<bd){bd=d;best=acc+k*L;}acc+=L;}return best/tot;}
+function runPrebuild(){
+  if(!PB.chosen.length){toast("Pick at least one AI resident");return;}
+  cancelAnimationFrame(PB.raf);PB.state="running";render();
+  const walkers=PB_PERSONAS.filter(p=>PB.chosen.includes(p.id)),all=pbPins(),dropped=new Set(),start=performance.now(),DUR=6500;
+  const still=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const step=now=>{
+    const f=still?1:Math.min(1,(now-start)/DUR);
+    walkers.forEach(p=>{const c=document.getElementById("pbw-"+p.id);if(!c)return;const q=pbAt(p.path,f);c.setAttribute("cx",q[0]);c.setAttribute("cy",q[1]);
+      p.issues.forEach(x=>{const i=all.findIndex(y=>y.issue===x.issue);if(!dropped.has(i)&&pbFrac(p.path,x.at)<=f){dropped.add(i);const g=document.getElementById("pbpins");if(g)g.insertAdjacentHTML("beforeend",pbPin(all[i],i));}});});
+    const n=document.getElementById("pbcount");if(n)n.textContent=dropped.size;
+    if(f<1)PB.raf=requestAnimationFrame(step);else{PB.state="done";render();}
+  };
+  PB.raf=requestAnimationFrame(step);
+}
+function preView(){
+  const pins=pbPins(),score=Math.max(20,100-pins.length*9),t=tone(score);
+  return `<div><h1>Pre-build audit</h1><p class="muted">Test a township plan before it's built. AI residents walk from home to the station on the plan and flag problems while they're still cheap to fix.</p></div>
+  <div class="pb-wrap"><section class="panel pb-ctl">
+    <div class="field"><label for="pbPlan">Township plan</label><select id="pbPlan"><option>Precinct 3 masterplan (Rev C)</option></select></div>
+    <div class="field"><span class="flabel">AI residents</span><div class="modes">${PB_PERSONAS.map(p=>`<button class="mchip" data-pbp="${p.id}" aria-pressed="${PB.chosen.includes(p.id)}" ${PB.state==="running"?"disabled":""}><i class="pbdot" style="background:${p.color}"></i>${p.name}</button>`).join("")}</div></div>
+    <div><button class="btn primary" data-act="pbrun" ${PB.state==="running"?"disabled":""}>${PB.state==="running"?`Walking the plan… <span id="pbcount">0</span> problems found`:PB.state==="done"?"Run audit again":"Run audit"}</button></div>
+  </section>
+  <section class="panel pb-plan">${pbPlanSVG()}</section></div>
+  ${PB.state==="done"?`<section class="panel pb-sum"><div class="pb-score"><span class="score ${t[0]}">${score}</span><div><strong>Plan walk score</strong><br><span class="chip ${t[0]}">${t[1]}</span></div></div>
+     <div class="pb-score"><b class="mono" style="font-size:1.6rem">${pins.length}</b><div><strong>Problems found</strong><br><span class="faint">by ${PB.chosen.length} AI resident${PB.chosen.length===1?"":"s"}</span></div></div>
+     <p class="note">Fixing these on the plan costs design time only. After construction, each one becomes a retrofit project.</p></section>
+   <section class="panel tblwrap"><table><thead><tr><th>#</th><th>AI resident</th><th>Problem</th><th>Fix on the drawing</th></tr></thead><tbody>
+     ${pins.map((x,i)=>`<tr><td class="n"><span class="num" style="background:${x.color}">${i+1}</span></td><td><strong>${esc(x.who)}</strong></td><td>${esc(x.issue)}</td><td>${esc(x.fix)}</td></tr>`).join("")}</tbody></table></section>`:""}`;
+}
+
 /* ---------- simulated AI pipeline ---------- */
 function makePts(a,b,R){
   const pts=[a];for(let i=1;i<5;i++){const f=i/5;pts.push([a[0]+(b[0]-a[0])*f+(R()-.5)*50,a[1]+(b[1]-a[1])*f+(R()-.5)*50]);}pts.push(b);
@@ -1819,7 +1909,7 @@ document.addEventListener("click",e=>{
   const zi=e.target.closest(ZOOM_SEL);if(zi){openZoom(zi.currentSrc||zi.src,zi.alt);return;}
   const mapHit=e.target.closest("#mapsvg");
   if(mapHit&&dragMoved){dragMoved=false;return;}
-  const t=e.target.closest("[data-tab],[data-open],[data-sample],[data-mode],[data-pinfield],[data-arrive],[data-startwalk],[data-feed],[data-snapwalk],[data-redeem],[data-buddy],[data-snapsample],[data-react],[data-cmt],[data-follow],[data-act],[data-seek],[data-watch],[data-pin],[data-cluster],[data-rsel],[data-layer],[data-place],[data-pmode],[data-geo],#pp");if(!t)return;
+  const t=e.target.closest("[data-tab],[data-open],[data-sample],[data-mode],[data-pinfield],[data-arrive],[data-startwalk],[data-feed],[data-pbp],[data-snapwalk],[data-redeem],[data-buddy],[data-snapsample],[data-react],[data-cmt],[data-follow],[data-act],[data-seek],[data-watch],[data-pin],[data-cluster],[data-rsel],[data-layer],[data-place],[data-pmode],[data-geo],#pp");if(!t)return;
   if(t.id==="pp"){setPlaying(!P.playing);return;}
   if(t.dataset.pmode){REC.mode=t.dataset.pmode;refreshPicker();return;}
   if(t.dataset.geo){pickGeo(t);return;}
@@ -1829,6 +1919,7 @@ document.addEventListener("click",e=>{
   if(t.dataset.rsel){S.sel={kind:"r",id:t.dataset.rsel};refreshMap();return;}
   if(t.dataset.layer){S.layers[t.dataset.layer]=!S.layers[t.dataset.layer];t.setAttribute("aria-pressed",S.layers[t.dataset.layer]);save();refreshMap();return;}
   if(t.dataset.place){const p=PLACES[t.dataset.place];mapSearch="";const r=$(".mresults");if(r)r.remove();$("#msearch").value="";zoomTo(p,18);toast(t.dataset.place);return;}
+  if(t.dataset.pbp){if(PB.state==="running")return;const c=PB.chosen,i=c.indexOf(t.dataset.pbp);if(i>=0)c.splice(i,1);else c.push(t.dataset.pbp);PB.state="idle";render();return;}
   if(t.dataset.snapwalk){keepSnapDraft();SNAP.choice=t.dataset.snapwalk;SNAP.pinning=false;render();return;}
   if(t.dataset.redeem){redeem(t.dataset.redeem);save();render();return;}
   if(t.dataset.buddy){const b=S.buddy,i=b.indexOf(t.dataset.buddy);if(i>=0)b.splice(i,1);else{b.push(t.dataset.buddy);toast("You've joined. Meet at the station exit 5 minutes before.");}save();render();return;}
@@ -1863,6 +1954,7 @@ document.addEventListener("click",e=>{
     case "alerton":S.alertOn=true;break;
     case "editfare":FAREEDIT=true;render();{const i=$("#fareAmt");if(i){i.focus();i.select();}}return;
     case "delfare":delete S.fares[t.dataset.key];toast("Fare removed. Estimates will be used for that trip.");break;
+    case "pbrun":runPrebuild();return;
     case "snapretake":SNAP=null;break;
     case "snaploc":keepSnapDraft();SNAP.pos=YOU.slice();SNAP.posName="My current location";SNAP.pinning=false;render();toast("Location from GPS");return;
     case "snapstandalone":keepSnapDraft();SNAP.choice="pin";SNAP.pinning=true;REC={a:null,b:null,mode:"a",q:""};render();return;
