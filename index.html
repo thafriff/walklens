@@ -376,6 +376,20 @@ main>*{min-width:0}
 .safe{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .safe blockquote{margin:0;padding:10px 12px;border-radius:14px;background:var(--sunk);font-weight:600}
 
+/* fixes: location fields, record tab, points pill, status lines */
+.locin{display:flex;gap:6px}.locin input{flex:1;min-width:0}
+.pinbtn{flex:none;width:46px;min-height:46px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--brand);display:grid;place-items:center}
+.pinbtn[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.pickwrap{display:flex;flex-direction:column;gap:8px}
+.bnav button.recbtn{width:56px;height:56px;margin-top:-14px;background:var(--brand);color:var(--brand-ink);box-shadow:0 10px 20px -8px rgba(212,42,59,.7);border:3px solid var(--surface)}
+.bnav button.recbtn[aria-current="page"]{background:#A3162A}
+.bnav-in{align-items:center}
+.ptspill{display:inline-flex;align-items:center;gap:5px;border:0;background:var(--brand-soft);color:var(--brand);border-radius:999px;padding:.3rem .7rem;font-weight:700;font-size:.82rem}
+.ptspill svg{width:16px;height:16px}
+.hz-status{font-size:.86rem;margin:6px 0 4px}
+.hz .tl{margin:4px 0 2px}
+.fixline{font-size:.78rem;color:var(--muted)}
+
 /* motion: views rise in once per navigation; nothing loops */
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes navpop{from{transform:scale(.88)}to{transform:none}}
@@ -479,6 +493,12 @@ function scoreOf(id){let s=100;hazOf(id).forEach(h=>{if(h.status!=="Fixed")s-=h.
 const tone=s=>s<50?["c-danger","Unsafe","var(--danger)"]:s<75?["c-warn","Needs work","var(--warn)"]:["c-ok","Good walk","var(--ok)"];
 const statusChip=st=>{const m={"Pending review":"c-neutral","Approved":"c-brand","Sent to council":"c-accent","In progress":"c-warn","Fixed":"c-ok","Rejected":"c-neutral"};
   const label=isAdmin()?st:st==="Pending review"?"Being checked":st==="Sent to council"?"Sent to agency":st;return `<span class="chip ${m[st]}">${esc(label)}</span>`;};
+/* the status in residents' words, with the date the township team set it */
+function statusLine(h){
+  if(h.status==="Rejected")return "Status: <strong>Not a hazard</strong>, closed by the township team";
+  const lab=TIMELINE[stepOf(h.status)][0],d=h.hist&&h.hist[lab];
+  return `Status: <strong>${lab}</strong>${d?" since "+fmtDate(d):""}${h.status==="Pending review"?", waiting for the township team":h.status==="Fixed"?"":", set by the township team"}`;
+}
 const sevChip=s=>s==="danger"?'<span class="chip c-danger">Danger</span>':'<span class="chip c-warn">Needs work</span>';
 /* fix-first priority: danger x people walking there x how many residents back the report */
 const priority=h=>(h.sev==="danger"?3:1)*h.walkers*(1+h.confirms*0.1+(h.affects||0)*0.1+(h.avoid||0)*0.15);
@@ -504,6 +524,8 @@ const ico={
  people:'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2.5 20c.7-3.6 3.2-5.5 6.5-5.5s5.8 1.9 6.5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="17.5" cy="9" r="2.8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M17.5 14.2c2.3.2 3.7 1.7 4.2 4.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
  compass:'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 8.5l-2 5-5 2 2-5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
  gift:'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 13v7h14v-7M12 8v12M12 8c-1.5-3-5-4-5.5-1.8C6 8 9 8 12 8zm0 0c1.5-3 5-4 5.5-1.8C18 8 15 8 12 8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
+ pinpt:'<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.6" fill="currentColor"/></svg>',
+ rec:'<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M16 10l6-3v10l-6-3z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>',
  user:'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
  pin:'<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12z" fill="currentColor"/><circle cx="12" cy="10" r="2.6" fill="var(--brand)"/></svg>',
  locate:'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="var(--brand-ink)"/><circle cx="12" cy="12" r="8" fill="none" stroke="var(--brand-ink)" stroke-width="2"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke="var(--brand-ink)" stroke-width="2"/></svg>',
@@ -695,9 +717,9 @@ function streetSVG(type,after){
 }
 
 /* ---------- shell ---------- */
-const RES_TABS=[["home","Home",ico.home],["navigate","Navigate",ico.compass],["reports","Community",ico.people],["rewards","Rewards",ico.gift],["profile","Profile",ico.user]];
+const RES_TABS=[["home","Home",ico.home],["navigate","Navigate",ico.compass],["record","Record a walk",ico.rec],["reports","Community",ico.people],["profile","Profile",ico.user]];
 /* screens without their own nav button light up the button they belong to */
-const NAV_PARENT={map:"home",snap:"reports",walk:"navigate",walkdone:"navigate",walks:"profile",record:"profile",sample:"reports"};
+const NAV_PARENT={map:"home",rewards:"profile",snap:"reports",walk:"navigate",walkdone:"navigate",walks:"profile",sample:"reports"};
 let lastKey="";
 function render(){
   cancelAnimationFrame(P.raf);
@@ -714,9 +736,9 @@ function render(){
     if(!S.tab||!["home","navigate","rewards","snap","walk","walkdone","walks","map","profile","record","reports","sample"].includes(S.tab))S.tab="home";
     const unread=S.notifs.filter(n=>!n.read).length;
     const navTab=NAV_PARENT[S.tab]||S.tab;
-    app.innerHTML=`<header class="top"><div class="wrap res"><div class="top-row"><div class="logo"><span class="logo-mark" style="color:var(--brand-ink)">${ico.walk}</span>WalkLens</div><div class="who"><span class="role-pill">Resident</span></div></div></div></header>
+    app.innerHTML=`<header class="top"><div class="wrap res"><div class="top-row"><div class="logo"><span class="logo-mark" style="color:var(--brand-ink)">${ico.walk}</span>WalkLens</div><div class="who"><button class="ptspill" data-tab="rewards" aria-label="WalkPoints: ${S.points}. Open Rewards">${ico.gift} <b class="mono">${(S.points||0).toLocaleString("en-MY")}</b> pts</button></div></div></div></header>
       <main class="wrap res res" id="main">${residentView()}</main>
-      <nav class="bnav" aria-label="Main"><div class="bnav-in">${RES_TABS.map(t=>`<button data-tab="${t[0]}" aria-label="${t[1]}" ${navTab===t[0]?'aria-current="page"':""}>${t[2]}${t[1]}${t[0]==="profile"&&unread?'<span class="dot" aria-label="New updates"></span>':""}</button>`).join("")}</div></nav>`;
+      <nav class="bnav" aria-label="Main"><div class="bnav-in">${RES_TABS.map(t=>`<button data-tab="${t[0]}" aria-label="${t[1]}" ${t[0]==="record"?'class="recbtn"':""} ${navTab===t[0]?'aria-current="page"':""}>${t[2]}${t[1]}${t[0]==="profile"&&unread?'<span class="dot" aria-label="New updates"></span>':""}</button>`).join("")}</div></nav>`;
   }
   const k=[isAdmin(),S.tab,S.openRoute].join("|"),m=$("#main");
   if(m&&k!==lastKey)m.classList.add("enter");
@@ -914,6 +936,14 @@ const EDGES=[
 ];
 const PEN={danger:300,warn:100};
 const WALK_SPEED=1.3, WHEEL_SPEED=1.0;          // metres per second
+/* turn what the resident typed into one of the known places, so "masjid" or "klang jaya" is enough */
+const PLACE_ALIASES={"klang jaya":"LRT Klang Jaya (SA23)","sa23":"LRT Klang Jaya (SA23)","bukit tinggi":"LRT Bandar Bukit Tinggi","bbt":"LRT Bandar Bukit Tinggi",
+  "masjid":"Masjid Jamek Cina Muslim Klang","mosque":"Masjid Jamek Cina Muslim Klang","current":"My current location","my location":"My current location"};
+function resolvePlace(text){
+  const t=(text||"").trim().toLowerCase();if(!t)return null;
+  const names=Object.keys(PLACES).concat("My current location");
+  return names.find(n=>n.toLowerCase()===t)||names.find(n=>n.toLowerCase().includes(t))||Object.entries(PLACE_ALIASES).find(([k])=>t.includes(k))?.[1]||null;
+}
 const nodeOf=name=>name==="My current location"?"kj":Object.keys(NODES).find(k=>NODES[k]===name)||null;
 function allPaths(from,to){
   const out=[];
@@ -925,11 +955,11 @@ function allPaths(from,to){
 }
 function pathInfo(edges){
   const m=S.nav.modes,speed=m.wheel?WHEEL_SPEED:WALK_SPEED;
-  let walkM=0,cost=0,covered=0,train=0,alert=false;const hz=[];
+  let walkM=0,cost=0,covered=0,train=0,alert=false;const hz=[],all=[];
   edges.forEach(e=>{
     if(e.train){train+=e.mins;return;}
     const r=route(e.route),open=hazOf(e.route).filter(h=>h.status!=="Fixed");
-    walkM+=r.len;covered+=r.len*e.covered;hz.push(...open);
+    walkM+=r.len;covered+=r.len*e.covered;hz.push(...open);all.push(...hazOf(e.route));
     cost+=r.len+open.reduce((a,h)=>a+PEN[h.sev],0);
     if(S.alertOn&&e.route===ALERT.route){cost+=ALERT.extra;alert=true;}
     if(m.rain)cost+=r.len*(1-e.covered)*.5;
@@ -939,7 +969,9 @@ function pathInfo(edges){
   const wait=train?nextDeparture(7).mins:0;
   const mins=Math.round(walkM/speed/60+train+wait);
   const danger=hz.filter(h=>h.sev==="danger").length,warn=hz.length-danger;
-  return {edges,walkM,cost,mins,train,wait,hz,danger,alert,
+  const fixes={done:all.filter(h=>h.status==="Fixed").length,doing:all.filter(h=>["Sent to council","In progress"].includes(h.status)).length};
+  fixes.waiting=all.length-fixes.done-fixes.doing;
+  return {edges,walkM,cost,mins,train,wait,hz,danger,alert,fixes,
     score:walkM?Math.max(5,100-danger*22-warn*9):100,
     covered:walkM?Math.round(covered/walkM*100):100,
     routes:edges.filter(e=>!e.train).map(e=>e.route),
@@ -979,13 +1011,20 @@ function navCard(p,kind,other){
    <dl class="nstats"><div><dt>Walk</dt><dd>${(p.walkM/1000).toFixed(2)} km</dd></div><div><dt>Hazards</dt><dd>${p.hz.length}</dd></div><div><dt>Covered</dt><dd>${p.covered}%</dd></div></dl>
    ${p.via?`<p class="faint">${esc(p.via)}, then walk</p>`:""}
    <p class="why">${esc(reasonFor(p,other,kind))}</p>
+   ${p.walkM?`<p class="fixline">Fixes: <strong>${p.fixes.done}</strong> done · <strong>${p.fixes.doing}</strong> with an agency · <strong>${p.fixes.waiting}</strong> not started</p>`:""}
    ${p.alert?`<p class="alert-line">Flooding reported on this route</p>`:""}
    <p class="faint">Leave by <strong>${leaveBy(p.mins)}</strong></p>
    ${p.walkM&&BUDDIES[kind==="only"?"safest":kind]?(()=>{const b=BUDDIES[kind==="only"?"safest":kind],joined=S.buddy.includes(kind);return `<div class="buddy"><span>${b.n+(joined?1:0)} residents walking this route on ${b.when}</span><button class="btn sm ${joined?"":"ghost"}" data-buddy="${kind}" aria-pressed="${joined}">${joined?"Joined":"Join"}</button></div>`;})():""}
    <div class="ncard-act"><button class="btn sm primary" data-startwalk="${kind}">Start walk</button>${p.routes[0]?`<button class="btn sm ghost" data-open="${p.routes[0]}">See hazards</button>`:""}</div></section>`;
 }
+function locField(id,label,key,ph){
+  const v=S.nav[key],ok=!v||resolvePlace(v)||v==="Dropped pin";
+  return `<div class="field"><label for="${id}">${label}</label><div class="locin"><input id="${id}" type="text" value="${esc(v)}" placeholder="${ph}" autocomplete="off">
+    <button type="button" class="pinbtn" data-pinfield="${key}" aria-label="Pick ${label==="From"?"the start":"the destination"} on the map" aria-pressed="${S.nav.map===key}">${ico.pinpt}</button></div>
+    ${ok?"":`<span class="faint">No audited place matches that yet. Try "Klang Jaya" or "masjid", or tap the pin to choose on the map.</span>`}</div>`;
+}
 function navigateView(){
-  const n=S.nav,plan=planRoutes(),places=Object.keys(PLACES).concat("My current location");
+  const n=S.nav,plan=planRoutes();
   const train=nextDeparture(7),bus=nextDeparture(20,6);
   const mode=(k,label)=>`<button class="mchip" data-mode="${k}" aria-pressed="${!!n.modes[k]}">${label}</button>`;
   let cards;
@@ -995,12 +1034,12 @@ function navigateView(){
   const alertBox=S.alertOn&&!plan.none&&[plan.fastest,plan.safest].some(p=>p&&p.alert)?`<section class="livealert" role="status"><span class="chip c-danger">Live alert · demo</span><strong>${esc(ALERT.text)}</strong><p>On the Klang Jaya walk. We've switched you to the covered path via LRT Bandar Bukit Tinggi.</p><button class="btn sm" data-act="alertoff">Dismiss</button></section>`:"";
   return `<div><h1>Navigate</h1><p class="muted">Pick where you're going. WalkLens compares the fastest walk with the safest one, using routes your neighbours have audited.</p></div>
   <section class="panel navform">
-    <datalist id="navPlaces">${places.map(p=>`<option value="${esc(p)}"></option>`).join("")}</datalist>
-    <div class="field"><label for="navFrom">From</label><input id="navFrom" type="text" list="navPlaces" value="${esc(n.from)}" autocomplete="off"></div>
+    ${locField("navFrom","From","from","Type a station or place")}
     <button class="btn sm ghost swap" data-act="navswap" aria-label="Swap start and destination">⇅ Swap</button>
-    <div class="field"><label for="navTo">To</label><input id="navTo" type="text" list="navPlaces" value="${esc(n.to)}" autocomplete="off"></div>
-    <div><button class="btn sm" data-act="navmap">${ico.map} ${n.map?"Hide map":"Pick on the map"}</button></div>
-    ${n.map?`<div id="picker" class="list" style="gap:8px">${pickerHTML()}</div>`:""}
+    ${locField("navTo","To","to","Where are you going?")}
+    ${n.map?`<div class="pickwrap"><p>Tap the map to set <strong>${n.map==="from"?"where you start":"where you're going"}</strong>, or use your location.</p>
+      <div class="mapbox" style="position:relative">${pickerSVG()}<div class="m-ctl"><button type="button" class="loc" data-act="pickloc" aria-label="Use my current location">${ico.locate}</button></div></div>
+      <div><button class="btn sm ghost" data-act="navmapclose">Cancel</button></div></div>`:""}
     <div class="modes" role="group" aria-label="Walking modes">${mode("rain","Rain · prefer covered")}${mode("night","Night · prefer lit")}${mode("wheel","Wheelchair or stroller")}</div>
     <div class="arrive"><div class="field"><label for="navArrive">Arrive by</label><input id="navArrive" type="time" value="${esc(n.arrive)}"></div>
       <button class="mchip" data-arrive="13:15" aria-pressed="${n.arrive==="13:15"}">Friday prayers 1:15 pm</button></div>
@@ -1038,6 +1077,7 @@ function auditView(id){
     ${hImg(h)?`<img class="hz-img" src="${hImg(h)}" alt="Video still: ${esc(h.short)}" loading="lazy">`:""}
     <div class="hz-top"><span class="mono faint">${mmss(h.t)}</span>${sevChip(h.sev)}${statusChip(h.status)}${h.conf?`<span class="faint">AI ${h.conf}% sure</span>`:""}</div>
     <strong>${esc(h.title)}</strong><div class="faint">Suggested fix: ${esc(h.fix)} · ${h.confirms} resident${h.confirms===1?"":"s"} confirmed</div>
+    ${adm?"":`<p class="hz-status">${statusLine(h)}</p>${timelineHTML(h)}`}
     <div class="hz-actions">${h.snap?"":`<button class="btn sm" data-seek="${Math.max(0,h.t-1)}">${ico.play} Watch</button>`}
     ${adm?(h.status==="Pending review"?`<button class="btn sm primary" data-act="approve" data-id="${h.id}">Approve</button><button class="btn sm" data-act="reject" data-id="${h.id}">Reject</button>`:""):`<button class="btn sm" data-act="confirm" data-id="${h.id}">Confirm, I've seen this</button><button class="btn sm ghost" data-act="dispute" data-id="${h.id}">Not a hazard</button>`}</div>
   </div></div>`).join(""):`<p class="empty">No hazards found on this route.</p>`}</section>`;
@@ -1084,11 +1124,10 @@ function pickerHTML(){
 }
 function refreshPicker(){const w=$("#picker");if(w){const f=document.activeElement&&document.activeElement.id==="psearch";w.innerHTML=pickerHTML();if(f){const i=$("#psearch");i.focus();i.setSelectionRange(i.value.length,i.value.length);}}}
 function setPoint(p,name){const was=REC.mode;REC[REC.mode]=p;REC[REC.mode+"Name"]=name||null;
-  if(S.tab==="navigate"){S.nav[was==="a"?"from":"to"]=name||placeName(p)||"Dropped pin";if(was==="a"&&!REC.b)REC.mode="b";REC.q="";save();render();return;}
+  if(S.tab==="navigate"&&S.nav.map){S.nav[S.nav.map]=name||placeName(p)||"Dropped pin";S.nav.map=false;REC={a:null,b:null,mode:"a",q:""};save();render();return;}
   if(REC.mode==="a"&&!REC.b)REC.mode="b";REC.q="";refreshPicker();const er=$("#recErr");if(er)er.hidden=true;}
 function recordView(){
-  return `<div><button class="btn sm ghost" data-tab="walks">← My walks</button></div>
-  <div><h1>Record a walk</h1><p class="muted">Walk your route with the camera facing ahead. The AI does the rest.</p></div>
+  return `<div><h1>Record a walk</h1><p class="muted">Walk your route with the camera facing ahead. The AI does the rest.</p></div>
   <form id="recForm" class="list" novalidate>
     <div class="fcard"><h3>Video</h3>
       <div class="drop">${ico.video}<strong id="fileName">${pending?esc(pending.name):"Choose a walking video"}</strong><span class="faint">MP4 or MOV.</span>
@@ -1115,7 +1154,7 @@ function profileView(){
     <div class="field"><label for="prefFamily">Safe Arrival contact</label><input id="prefFamily" type="text" maxlength="60" value="${esc(S.prefs.family)}"></div>
     <p class="faint">Gets a message when you arrive, if you share a walk. Demo only.</p></section>
   <section class="panel"><h2>Updates</h2>${list||`<p class="empty">No updates yet.</p>`}</section>
-  <div class="list"><button class="btn block" data-tab="walks">${ico.list} My walks</button><button class="btn block" data-tab="map">${ico.map} Township map</button><button class="btn block" data-act="logout">Switch account</button><button class="btn block ghost" data-act="reset">Reset demo data</button></div>`;
+  <div class="list"><button class="btn block" data-tab="rewards">${ico.gift} Rewards and vouchers</button><button class="btn block" data-tab="walks">${ico.list} My walks</button><button class="btn block" data-tab="map">${ico.map} Township map</button><button class="btn block" data-act="logout">Switch account</button><button class="btn block ghost" data-act="reset">Reset demo data</button></div>`;
 }
 
 /* admin views */
@@ -1245,7 +1284,7 @@ function tickWalk(){
 }
 function upcomingHTML(){
   const next=WALK.marks.filter(m=>m.at>WALK.dist).slice(0,2);
-  return next.length?next.map((m,i)=>`<div class="up ${m.h.sev}"><span class="chip ${m.h.sev==="danger"?"c-danger":"c-warn"}">${Math.round(m.at-WALK.dist)} m</span><span><strong>${esc(m.h.short)}</strong> in ${Math.round(m.at-WALK.dist)} m, ${ADVICE[m.h.type]||"take care"}</span></div>`).join(""):`<p class="faint">No more hazards on this route. Nearly there.</p>`;
+  return next.length?next.map((m,i)=>`<div class="up ${m.h.sev}"><span class="chip ${m.h.sev==="danger"?"c-danger":"c-warn"}">${Math.round(m.at-WALK.dist)} m</span><span><strong>${esc(m.h.short)}</strong> in ${Math.round(m.at-WALK.dist)} m, ${ADVICE[m.h.type]||"take care"} ${statusChip(m.h.status)}</span></div>`).join(""):`<p class="faint">No more hazards on this route. Nearly there.</p>`;
 }
 function drawWalk(){
   if(S.tab!=="walk"||!$("#wDist"))return;
@@ -1376,7 +1415,7 @@ const VOUCHERS=[
 const EARN=[["Finish a walk","10 + 1 per 100 m"],["Send a photo report","5"],["Report confirmed by the township team","20"],["Say a report affects you, flag a route or comment","2 each"]];
 function rewardsView(){
   const pts=S.points||0;
-  return `<div><h1>Rewards</h1><p class="muted">Earn WalkPoints for walking and for helping fix the township. Spend them at township shops.</p></div>
+  return `<div><button class="btn sm ghost" data-tab="profile">← Profile</button></div><div><h1>Rewards</h1><p class="muted">Earn WalkPoints for walking and for helping fix the township. Spend them at township shops.</p></div>
   <section class="hero ptsbox"><p>Your WalkPoints</p><div class="big mono">${pts.toLocaleString("en-MY")}</div><p>${S.redeemed.length} voucher${S.redeemed.length===1?"":"s"} redeemed</p></section>
   <section class="panel"><h2>Vouchers</h2><p class="faint">Demo vouchers. Real partners would be SDP township shops.</p>
    <div class="list" style="margin-top:10px">${VOUCHERS.map(v=>{const got=S.redeemed.find(x=>x.id===v.id);
@@ -1452,7 +1491,7 @@ document.addEventListener("click",e=>{
   if(mapHit&&dragMoved){dragMoved=false;return;}
   const psvg=e.target.closest("#pickersvg");
   if(psvg){const pt=psvg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const m=pt.matrixTransform(psvg.getScreenCTM().inverse());const p=[Math.round(m.x),Math.round(m.y)];const n=placeName(p);setPoint(n?PLACES[n].slice():p,n);return;}
-  const t=e.target.closest("[data-tab],[data-open],[data-sample],[data-mode],[data-arrive],[data-startwalk],[data-feed],[data-redeem],[data-buddy],[data-snapsample],[data-react],[data-cmt],[data-follow],[data-act],[data-seek],[data-watch],[data-pin],[data-cluster],[data-rsel],[data-layer],[data-place],[data-pmode],[data-pplace],#pp");if(!t)return;
+  const t=e.target.closest("[data-tab],[data-open],[data-sample],[data-mode],[data-pinfield],[data-arrive],[data-startwalk],[data-feed],[data-redeem],[data-buddy],[data-snapsample],[data-react],[data-cmt],[data-follow],[data-act],[data-seek],[data-watch],[data-pin],[data-cluster],[data-rsel],[data-layer],[data-place],[data-pmode],[data-pplace],#pp");if(!t)return;
   if(t.id==="pp"){setPlaying(!P.playing);return;}
   if(t.dataset.pmode){REC.mode=t.dataset.pmode;refreshPicker();return;}
   if(t.dataset.pplace){setPoint(PLACES[t.dataset.pplace].slice(),t.dataset.pplace);return;}
@@ -1470,6 +1509,7 @@ document.addEventListener("click",e=>{
   if(t.dataset.react){react(t.dataset.react,t.dataset.id);save();render();return;}
   if(t.dataset.cmt){S.openCmt=S.openCmt===t.dataset.cmt?null:t.dataset.cmt;save();render();const i=$("#cmtText");if(i)i.focus();return;}
   if(t.dataset.follow){const f=S.follow,i=f.indexOf(t.dataset.follow);if(i>=0){f.splice(i,1);toast("Unfollowed");}else{f.push(t.dataset.follow);toast("Following. You'll get a notification when its status changes.");}save();render();return;}
+  if(t.dataset.pinfield){const k=t.dataset.pinfield;S.nav.map=S.nav.map===k?false:k;REC={a:null,b:null,mode:k==="from"?"a":"b",q:""};save();render();return;}
   if(t.dataset.mode){S.nav.modes[t.dataset.mode]=!S.nav.modes[t.dataset.mode];save();render();return;}
   if(t.dataset.arrive){S.nav.arrive=t.dataset.arrive;save();render();return;}
   if(t.dataset.startwalk){startWalk(t.dataset.startwalk);return;}
@@ -1494,7 +1534,7 @@ document.addEventListener("click",e=>{
     case "snapretake":SNAP=null;break;
     case "finishwalk":if(WALK)WALK.dist=WALK.p.walkM;finishWalk();return;
     case "navswap":[S.nav.from,S.nav.to]=[S.nav.to,S.nav.from];break;
-    case "navmap":S.nav.map=!S.nav.map;REC={a:null,b:null,mode:"a",q:""};break;
+    case "navmapclose":S.nav.map=false;break;
     case "block":{const u=S.users.find(x=>x.id===id);u.blocked=!u.blocked;toast(u.blocked?"User blocked":"User unblocked");break;}
     case "sample":pending={name:"sample_station_walk.mp4",url:null};$("#fileName").textContent=pending.name;if(!$("#rname").value)$("#rname").value="Station to mosque (sample)";$("#recErr").hidden=true;
       if($("#g1").checked){REC.a=PLACES["LRT Klang Jaya (SA23)"].slice();REC.aName="LRT Klang Jaya (SA23)";REC.b=PLACES["Masjid Jamek Cina Muslim Klang"].slice();REC.bName="Masjid Jamek Cina Muslim Klang";REC.mode="b";refreshPicker();toast("Route traced from the video's GPS");}return;
@@ -1512,7 +1552,7 @@ document.addEventListener("change",e=>{
     if($("#g1").checked&&!REC.a){REC.a=YOU.slice();REC.aName="My current location";REC.mode="b";refreshPicker();toast("Start read from GPS. Confirm the end point on the map.");}return;}
   if(el.name==="gsrc"){toast(el.value==="gps"?"Start and end will come from the video's GPS":"Tap the map to pin the start and end");return;}
   if(el.id==="pseek"){seek(+el.value);return;}
-  if(el.id==="navFrom"||el.id==="navTo"){S.nav[el.id==="navFrom"?"from":"to"]=el.value.trim();save();render();return;}
+  if(el.id==="navFrom"||el.id==="navTo"){const v=el.value.trim();S.nav[el.id==="navFrom"?"from":"to"]=resolvePlace(v)||v;save();render();return;}
   if(el.id==="snapFile"&&el.files[0]){const f=el.files[0];shrinkPhoto(f).then(img=>runSnap(img,{name:f.name,size:f.size})).catch(()=>toast("That photo couldn't be read. Try another one."));return;}
   if(el.id==="prefFamily"){S.prefs.family=el.value.trim()||"Family";save();toast("Contact saved");return;}
   if(el.id==="prefEhail"){const v=parseFloat(el.value);S.prefs.ehail=isFinite(v)&&v>=0?v:6;save();toast("Fare saved");return;}
