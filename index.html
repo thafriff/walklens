@@ -476,6 +476,15 @@ main>*{min-width:0}
 .mnote{margin:0;padding:10px 14px;font-size:.8rem;color:var(--muted)}
 .lplace.found span{background:var(--brand)}
 
+/* bottom nav with a label under every icon; six fit on a 360 px screen */
+.bnav-in{gap:2px;padding:6px 8px;border-radius:24px}
+.bnav button{flex-direction:column;justify-content:center;width:54px;height:auto;min-height:50px;padding:5px 0 4px;gap:2px;font-size:.66rem;font-weight:700;border-radius:16px;background:none;color:var(--muted);line-height:1.1}
+.bnav button svg{width:22px;height:22px}
+.bnav button .bl{white-space:nowrap}
+.bnav button[aria-current="page"]{background:var(--brand-soft);color:var(--brand)}
+.bnav .dot{top:4px;right:12px}
+@media (max-width:360px){.bnav button{width:50px}.bnav-in{padding:6px 4px}}
+
 /* motion: views rise in once per navigation; nothing loops */
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes navpop{from{transform:scale(.88)}to{transform:none}}
@@ -949,7 +958,7 @@ function render(){
     const navTab=NAV_PARENT[S.tab]||S.tab;
     app.innerHTML=`<header class="top"><div class="wrap res"><div class="top-row"><div class="logo"><span class="logo-mark" style="color:var(--brand-ink)">${ico.walk}</span>WalkLens</div><div class="who"><button class="ptspill" data-tab="rewards" aria-label="WalkPoints: ${S.points}. Open Rewards">${ico.gift} <b class="mono">${(S.points||0).toLocaleString("en-MY")}</b> pts</button></div></div></div></header>
       <main class="wrap res res" id="main">${residentView()}</main>
-      <nav class="bnav" aria-label="Main"><div class="bnav-in">${RES_TABS.map(t=>`<button data-tab="${t[0]}" aria-label="${t[1]}" ${navTab===t[0]?'aria-current="page"':""}>${t[2]}${t[1]}${t[0]==="profile"&&unread?'<span class="dot" aria-label="New updates"></span>':""}</button>`).join("")}</div></nav>`;
+      <nav class="bnav" aria-label="Main"><div class="bnav-in">${RES_TABS.map(t=>`<button data-tab="${t[0]}" aria-label="${t[1]}" ${navTab===t[0]?'aria-current="page"':""}>${t[2]}<span class="bl">${t[1]}</span>${t[0]==="profile"&&unread?'<span class="dot" aria-label="New updates"></span>':""}</button>`).join("")}</div></nav>`;
   }
   const k=[isAdmin(),S.tab,S.openRoute].join("|"),m=$("#main");
   if(m&&k!==lastKey)m.classList.add("enter");
