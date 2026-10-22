@@ -398,6 +398,11 @@ main>*{min-width:0}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
 
 /* snap location */
+.walkpick{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.wopt{display:flex;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:10px 12px;width:100%;transition:border-color .2s,background .2s}
+.wopt[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-soft)}
+.wopt.other{margin-top:4px;border-style:dashed}
+.where .btn{align-self:flex-start;margin-top:6px}
 .flabel{font-weight:600;font-size:.9rem}
 .where{display:flex;flex-direction:column;gap:2px;border-radius:14px;padding:10px 12px;font-size:.88rem}
 .where.on{background:var(--ok-soft)} .where.off{background:var(--warn-soft)}
@@ -873,14 +878,17 @@ function whereText(h){const r=route(h.route);if(r)return r.from+" → "+r.to;con
    walk is added to that walk, at the matching point in its video time, so it counts toward the walk
    score and the Navigate route choice. Anything further away stays a standalone report. */
 const MATCH_DIST=40;
+/* the closest point on one walk to a map point: distance, share of the way along, and the point */
+function projectOnRoute(r,p){
+  let along=0,total=0,best=null;const seg=[];
+  for(let i=1;i<r.pts.length;i++){const d=Math.hypot(r.pts[i][0]-r.pts[i-1][0],r.pts[i][1]-r.pts[i-1][1]);seg.push(d);total+=d;}
+  for(let i=1;i<r.pts.length;i++){const a=r.pts[i-1],b=r.pts[i],L=seg[i-1]||1;
+    const k=Math.max(0,Math.min(1,((p[0]-a[0])*(b[0]-a[0])+(p[1]-a[1])*(b[1]-a[1]))/(L*L))),pt=[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k];
+    const d=Math.hypot(pt[0]-p[0],pt[1]-p[1]);if(!best||d<best.d)best={r,d,f:(along+k*L)/total,pt};along+=L;}
+  return best;
+}
 function nearestWalk(p){
-  let best=null;
-  S.routes.forEach(r=>{let along=0,total=0;const seg=[];
-    for(let i=1;i<r.pts.length;i++){const d=Math.hypot(r.pts[i][0]-r.pts[i-1][0],r.pts[i][1]-r.pts[i-1][1]);seg.push(d);total+=d;}
-    for(let i=1;i<r.pts.length;i++){const a=r.pts[i-1],b=r.pts[i],L=seg[i-1]||1;
-      const k=Math.max(0,Math.min(1,((p[0]-a[0])*(b[0]-a[0])+(p[1]-a[1])*(b[1]-a[1]))/(L*L)));
-      const d=Math.hypot(a[0]+(b[0]-a[0])*k-p[0],a[1]+(b[1]-a[1])*k-p[1]);
-      if(!best||d<best.d)best={r,d,f:(along+k*L)/total};along+=L;}});
+  const best=S.routes.map(r=>projectOnRoute(r,p)).sort((x,y)=>x.d-y.d)[0];
   return best&&best.d<=MATCH_DIST?best:null;
 }
 function fillHazard(h){
@@ -1419,7 +1427,8 @@ function shrinkPhoto(file){
     c.getContext("2d").drawImage(im,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",.72));};im.src=fr.result;};fr.readAsDataURL(file);});
 }
 function runSnap(img,meta,pos){
-  SNAP={img,stage:"checking",pos:pos||YOU.slice(),posName:pos?null:"My current location"};render();
+  const at=pos||YOU.slice(),near=nearestWalk(at);
+  SNAP={img,stage:"checking",pos:at,posName:pos?null:"My current location",choice:near?near.r.id:null,q:""};render();
   classifyPhoto(meta).then(r=>{if(!SNAP)return;SNAP.stage="result";SNAP.result=r;render();});
 }
 function snapView(){
@@ -1437,22 +1446,36 @@ function snapView(){
     <dl class="snapdl"><div><dt>Likely responsible</dt><dd>${esc(r.agency)} <span class="est">estimate</span></dd></div><div><dt>Suggested fix</dt><dd>${esc(r.fix)}</dd></div></dl></section>
   <form id="snapForm" class="fcard" novalidate><h3>Your report</h3><p class="faint">Check it, then send. You can edit anything.</p>
     <div class="field"><label for="snapTitle">What's wrong</label><input id="snapTitle" type="text" maxlength="120" value="${esc(SNAP.title!=null?SNAP.title:r.label)}"></div>
-    <div class="field"><span class="flabel">Where is it?</span>${snapWhere()}</div>
+    <div class="field">${snapWhere()}</div>
     <div class="field"><label for="snapNote">Anything else <span class="faint">(optional)</span></label><textarea id="snapNote" maxlength="300" placeholder="Like when it's worst, or how long it's been there">${esc(SNAP.note||"")}</textarea></div>
     <button class="btn primary block" type="submit">Confirm and send</button><button class="btn block ghost" type="button" data-act="snapretake">Retake photo</button></form>`;
 }
+function snapWalkList(){
+  const q=(SNAP.q||"").trim().toLowerCase(),near=nearestWalk(SNAP.pos);
+  const list=S.routes.filter(r=>!q||[r.name,r.from,r.to].join(" ").toLowerCase().includes(q));
+  if(!list.length)return `<p class="faint">No recorded walk matches "${esc(SNAP.q)}". Use the option below to pin it on the map instead.</p>`;
+  return list.map(r=>`<button type="button" class="wopt" data-snapwalk="${r.id}" aria-pressed="${SNAP.choice===r.id}"><span><strong>${esc(r.name)}</strong>${near&&near.r.id===r.id?' <span class="chip c-ok">Near you</span>':""}<br><span class="faint">${esc(r.from)} → ${esc(r.to)}</span></span></button>`).join("");
+}
 function snapWhere(){
-  const m=nearestWalk(SNAP.pos),n=SNAP.posName||placeName(SNAP.pos);
-  return `<div class="where ${m?"on":"off"}"><strong>${esc(n?(n==="My current location"?n:"Near "+n):"Dropped pin")}</strong>
-    <span>${m?`On the recorded walk "${esc(m.r.name)}". It will count toward that walk's score.`:"No recorded walk here yet. It will show as its own report on the map and in Community."}</span></div>
-    <div class="where-act"><button type="button" class="btn sm" data-act="snaploc">${ico.locate.replace(/var\(--brand-ink\)/g,"currentColor")} Use my location</button><button type="button" class="btn sm" data-act="snappin" aria-pressed="${!!SNAP.pinning}">${ico.pinpt} ${SNAP.pinning?"Cancel":"Pin on the map"}</button></div>
-    ${SNAP.pinning?`<p class="faint">Tap where the problem is.</p><div class="mapbox" style="position:relative">${pickerSVG()}</div>`:""}`;
+  const pinned=SNAP.choice==="pin",n=SNAP.posName||placeName(SNAP.pos),m=pinned&&nearestWalk(SNAP.pos);
+  return `<label for="snapWalkQ" class="flabel">Which walk is it on?</label>
+    <div class="msearch">${ico.search}<input id="snapWalkQ" type="search" placeholder="Search recorded walks, like Klang Jaya or masjid" value="${esc(SNAP.q||"")}" autocomplete="off"></div>
+    <div id="snapWalks" class="walkpick">${snapWalkList()}</div>
+    <button type="button" class="wopt other" data-act="snapstandalone" aria-pressed="${pinned}"><span><strong>Not on a recorded walk?</strong><br><span class="faint">Pin it on the map anyway</span></span></button>
+    ${pinned?`<div class="where off"><strong>${esc(n?(n==="My current location"?n:"Near "+n):"Dropped pin")}</strong><span>No recorded walk here yet. It will show as its own report on the map and in Community.</span>
+      ${m?`<button type="button" class="btn sm" data-snapwalk="${m.r.id}">This spot is on "${esc(m.r.name)}". Add it there</button>`:""}</div>
+      <div class="where-act"><button type="button" class="btn sm" data-act="snaploc">${ico.locate.replace(/var\(--brand-ink\)/g,"currentColor")} Use my location</button><button type="button" class="btn sm" data-act="snappin" aria-pressed="${!!SNAP.pinning}">${ico.pinpt} ${SNAP.pinning?"Close map":"Pin on the map"}</button></div>
+      ${SNAP.pinning?`<p class="faint">Tap where the problem is.</p><div class="mapbox" style="position:relative">${pickerSVG()}</div>`:""}`:""}
+    <p id="snapErr" class="faint" style="color:var(--danger)" hidden></p>`;
 }
 /* keep what the resident typed when the form redraws */
 function keepSnapDraft(){if(!SNAP)return;const t=$("#snapTitle"),n=$("#snapNote");if(t)SNAP.title=t.value;if(n)SNAP.note=n.value;}
 function sendSnap(){
-  const r=SNAP.result,title=($("#snapTitle").value||r.label).trim(),m=nearestWalk(SNAP.pos);
-  const h={id:"s"+Date.now(),route:m?m.r.id:null,t:m?Math.round(m.f*m.r.dur):null,pos:SNAP.pos.slice(),type:r.type,short:r.label.split(",")[0],title,sev:r.sev,fix:r.fix,cost:r.cost,walkers:200,confirms:0,conf:r.conf,
+  const r=SNAP.result,title=($("#snapTitle").value||r.label).trim();
+  if(!SNAP.choice){const e=$("#snapErr");e.textContent="Choose the walk it's on, or pin it on the map.";e.hidden=false;return;}
+  /* on a chosen walk the photo sits at the closest point of that walk to where it was taken */
+  const w=SNAP.choice==="pin"?null:projectOnRoute(route(SNAP.choice),SNAP.pos);
+  const h={id:"s"+Date.now(),route:w?w.r.id:null,t:w?Math.round(w.f*w.r.dur):null,pos:w?w.pt.map(Math.round):SNAP.pos.slice(),type:r.type,short:r.label.split(",")[0],title,sev:r.sev,fix:r.fix,cost:r.cost,walkers:200,confirms:0,conf:r.conf,
     status:"Pending review",reported:isoDay(0),snap:true,photo:SNAP.img,note:$("#snapNote").value.trim(),agency:r.agency};
   fillHazard(h);S.hazards.push(h);S.follow.push(h.id);addPoints(5,"Sent a photo report");
   notify(`Your report "${title}" was sent. The township team will check it, and you'll hear when it moves.`);
@@ -1546,7 +1569,7 @@ document.addEventListener("click",e=>{
   if(mapHit&&dragMoved){dragMoved=false;return;}
   const psvg=e.target.closest("#pickersvg");
   if(psvg){const pt=psvg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const m=pt.matrixTransform(psvg.getScreenCTM().inverse());const p=[Math.round(m.x),Math.round(m.y)];const n=placeName(p);setPoint(n?PLACES[n].slice():p,n);return;}
-  const t=e.target.closest("[data-tab],[data-open],[data-sample],[data-mode],[data-pinfield],[data-arrive],[data-startwalk],[data-feed],[data-redeem],[data-buddy],[data-snapsample],[data-react],[data-cmt],[data-follow],[data-act],[data-seek],[data-watch],[data-pin],[data-cluster],[data-rsel],[data-layer],[data-place],[data-pmode],[data-pplace],#pp");if(!t)return;
+  const t=e.target.closest("[data-tab],[data-open],[data-sample],[data-mode],[data-pinfield],[data-arrive],[data-startwalk],[data-feed],[data-snapwalk],[data-redeem],[data-buddy],[data-snapsample],[data-react],[data-cmt],[data-follow],[data-act],[data-seek],[data-watch],[data-pin],[data-cluster],[data-rsel],[data-layer],[data-place],[data-pmode],[data-pplace],#pp");if(!t)return;
   if(t.id==="pp"){setPlaying(!P.playing);return;}
   if(t.dataset.pmode){REC.mode=t.dataset.pmode;refreshPicker();return;}
   if(t.dataset.pplace){setPoint(PLACES[t.dataset.pplace].slice(),t.dataset.pplace);return;}
@@ -1557,6 +1580,7 @@ document.addEventListener("click",e=>{
   if(t.dataset.rsel){S.sel={kind:"r",id:t.dataset.rsel};refreshMap();return;}
   if(t.dataset.layer){S.layers[t.dataset.layer]=!S.layers[t.dataset.layer];t.setAttribute("aria-pressed",S.layers[t.dataset.layer]);save();refreshMap();return;}
   if(t.dataset.place){const p=PLACES[t.dataset.place];mapSearch="";const r=$(".mresults");if(r)r.remove();$("#msearch").value="";zoomTo(p[0],p[1],420);toast(t.dataset.place);return;}
+  if(t.dataset.snapwalk){keepSnapDraft();SNAP.choice=t.dataset.snapwalk;SNAP.pinning=false;render();return;}
   if(t.dataset.redeem){redeem(t.dataset.redeem);save();render();return;}
   if(t.dataset.buddy){const b=S.buddy,i=b.indexOf(t.dataset.buddy);if(i>=0)b.splice(i,1);else{b.push(t.dataset.buddy);toast("You've joined. Meet at the station exit 5 minutes before.");}save();render();return;}
   if(t.dataset.snapsample){const x=SNAP_SAMPLES[+t.dataset.snapsample];runSnap(x.img,{hint:x.type,name:x.img,size:0},hxy({route:x.at[0],t:x.at[1]}).map(Math.round));return;}
@@ -1590,6 +1614,7 @@ document.addEventListener("click",e=>{
     case "alerton":S.alertOn=true;break;
     case "snapretake":SNAP=null;break;
     case "snaploc":keepSnapDraft();SNAP.pos=YOU.slice();SNAP.posName="My current location";SNAP.pinning=false;render();toast("Location from GPS");return;
+    case "snapstandalone":keepSnapDraft();SNAP.choice="pin";SNAP.pinning=true;REC={a:null,b:null,mode:"a",q:""};render();return;
     case "snappin":keepSnapDraft();SNAP.pinning=!SNAP.pinning;REC={a:null,b:null,mode:"a",q:""};render();return;
     case "finishwalk":if(WALK)WALK.dist=WALK.p.walkM;finishWalk();return;
     case "navswap":[S.nav.from,S.nav.to]=[S.nav.to,S.nav.from];break;
@@ -1623,6 +1648,7 @@ document.addEventListener("input",e=>{
   if(el.id==="pseek"){seek(+el.value);}
   if(el.id==="rname"){const er=$("#recErr");if(er)er.hidden=true;}
   if(el.id==="psearch"){REC.q=el.value;refreshPicker();}
+  if(el.id==="snapWalkQ"&&SNAP){SNAP.q=el.value;const l=$("#snapWalks");if(l)l.innerHTML=snapWalkList();}
   if(el.id==="note")$("#ncount").textContent=el.value.length+"/500";
   if(el.id==="msearch"){mapSearch=el.value;const box=$(".msearch");const old=box.querySelector(".mresults");if(old)old.remove();
     const res=Object.keys(PLACES).filter(p=>mapSearch&&p.toLowerCase().includes(mapSearch.toLowerCase()));
