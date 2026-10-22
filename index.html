@@ -960,9 +960,9 @@ function signIn(){
   const role=LOGIN.role,u=$("#lgUser").value.trim().toLowerCase(),pw=$("#lgPass").value,err=$("#lgErr"),acc=DEMO_ACCOUNTS[role];
   const fail=m=>{err.textContent=m;err.hidden=false;$("#lgPass").value="";$("#lgPass").focus();};
   if(!u||!pw)return fail("Enter your username and password.");
-  if(u===acc.user&&pw===acc.pass){S.user=role;S.tab=null;S.openRoute=null;S.sel=null;save();render();window.scrollTo(0,0);toast(role==="admin"?"Signed in as SDP admin":"Welcome back, Aiman");return;}
+  if(u===acc.user&&pw===acc.pass){S.user=role;S.tab=null;S.openRoute=null;S.sel=null;save();render();window.scrollTo(0,0);toast(role==="admin"?"Signed in as admin":"Welcome back, Aiman");return;}
   const other=role==="admin"?"resident":"admin",o=DEMO_ACCOUNTS[other];
-  if(u===o.user&&pw===o.pass)return fail(`That's the ${other==="admin"?"SDP admin":"resident"} account. Switch to ${other==="admin"?"SDP admin":"Resident"} above to use it.`);
+  if(u===o.user&&pw===o.pass)return fail(`That's the ${other==="admin"?"admin":"resident"} account. Switch to ${other==="admin"?"Admin":"Resident"} above to use it.`);
   fail("That username or password isn't right. Check them and try again.");
 }
 function loginView(){
@@ -972,7 +972,7 @@ function loginView(){
     <form id="loginForm" class="panel signin" novalidate>
       <div class="roleseg" role="radiogroup" aria-label="Sign in as">
         <label for="roleRes"><input type="radio" name="role" id="roleRes" value="resident" ${LOGIN.role==="resident"?"checked":""}><span>Resident</span></label>
-        <label for="roleAdm"><input type="radio" name="role" id="roleAdm" value="admin" ${LOGIN.role==="admin"?"checked":""}><span>SDP admin</span></label></div>
+        <label for="roleAdm"><input type="radio" name="role" id="roleAdm" value="admin" ${LOGIN.role==="admin"?"checked":""}><span>Admin</span></label></div>
       <div class="field"><label for="lgUser">Username</label><input id="lgUser" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Enter your username"></div>
       <div class="field"><label for="lgPass">Password</label><div class="locin"><input id="lgPass" type="password" autocomplete="current-password" placeholder="Enter your password">
         <button type="button" class="pinbtn" data-act="showpass" aria-label="Show password" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg></button></div></div>
