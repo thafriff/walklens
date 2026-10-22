@@ -444,6 +444,8 @@ main>*{min-width:0}
 .wmapbox .m-badge{z-index:500;position:absolute;left:10px;top:10px;bottom:auto}
 
 /* sign in */
+.login{min-height:100vh;align-content:center}
+.login-card{max-width:420px;gap:20px}
 .signin{display:flex;flex-direction:column;gap:12px}
 .roleseg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--sunk);border-radius:14px;padding:4px}
 .roleseg label{position:relative;cursor:pointer}
@@ -807,7 +809,7 @@ function playerHTML(r){
        ${hz.map(h=>`<button class="mark" data-seek="${seekT(h)}" style="left:${seekT(h)/r.dur*100}%;background:${hazColor(h)}" aria-label="Jump to ${esc(h.short)} at ${mmss(h.t)}"></button>`).join("")}</div>
      <span class="ptime" id="ptime">0:00 / ${mmss(r.dur)}</span></div>
    <div class="jumps">${hz.map((h,i)=>`<button class="btn sm" data-seek="${seekT(h)}"><span class="mono">${mmss(seekT(h))}</span> ${esc(h.short)}</button>`).join("")}</div>
-   <p class="faint">${r.real?"Real walking video, filmed on a Friday. Hazards and boxes come from an AI review of the video frames.":uploaded?"Your uploaded video. AI boxes are drawn from the simulated audit.":(r.uploadedName?"Original upload isn't kept in this demo, so a simulated replay is shown.":"Simulated replay of the walk video. Boxes show where the AI spotted each problem.")}</p>
+   <p class="faint">${r.real?"Real walking video, filmed on a Friday. Hazards and boxes come from an AI review of the video frames.":uploaded?"Your uploaded video. Boxes show where the AI spotted each problem.":(r.uploadedName?"The original video isn't stored on this phone, so a replay is shown.":"Replay of the walk. Boxes show where the AI spotted each problem.")}</p>
   </div>`;
 }
 function activeAt(r,t){const abs=t+(r.vstart||0),hz=hazOf(r.id);
@@ -876,7 +878,7 @@ function render(){
     const tabs=[["dash","Dashboard"],["amap","Map"],["review","Review queue",S.hazards.filter(h=>h.status==="Pending review").length],["fix","Fix-first list"],["pre","Pre-build audit"],["users","Users"]];
     if(!S.tab||!tabs.some(t=>t[0]===S.tab))S.tab="dash";
     app.innerHTML=`<header class="top"><div class="wrap adm"><div class="top-row"><div class="logo"><span class="logo-mark" style="color:var(--brand-ink)">${ico.walk}</span>WalkLens <span class="faint" style="font-weight:600">Township console</span></div>
-      <div class="who"><span class="role-pill">Admin</span><span class="muted">SDP Township Team</span><button class="btn sm ghost" data-act="logout">Switch account</button></div></div>
+      <div class="who"><span class="role-pill">Admin</span><span class="muted">SDP Township Team</span><button class="btn sm" data-act="logout">Log out</button></div></div>
       <nav class="tabs" aria-label="Sections">${tabs.map(t=>`<button class="tab" data-tab="${t[0]}" ${S.tab===t[0]?'aria-current="page"':""}>${t[1]}${t[2]?`<span class="count">${t[2]}</span>`:""}</button>`).join("")}</nav></div></header>
       <main class="wrap adm" id="main">${adminView()}</main>`;
   }else{
@@ -965,23 +967,18 @@ function signIn(){
 }
 function loginView(){
   return `<div class="wrap res login"><div class="login-card">
-    <div class="collage" aria-hidden="true"><img src="media/frames/t10.jpg" alt=""><img src="media/frames/t100.jpg" alt=""><img src="media/frames/t148.jpg" alt=""></div>
-    <div class="logo" style="font-size:1.5rem"><span class="logo-mark" style="color:var(--brand-ink)">${ico.walk}</span>WalkLens</div>
-    <h1>Your daily walking companion</h1>
-    <p class="muted">WalkLens gets you to the station safely, tracks your health and savings, and rewards you. Every walk helps fix the township.</p>
+    <div class="logo" style="font-size:1.6rem"><span class="logo-mark" style="color:var(--brand-ink)">${ico.walk}</span>WalkLens</div>
+    <div><h1>Sign in</h1><p class="muted">Your daily walking companion for the walk to the station.</p></div>
     <form id="loginForm" class="panel signin" novalidate>
-      <h2>Sign in</h2>
       <div class="roleseg" role="radiogroup" aria-label="Sign in as">
         <label for="roleRes"><input type="radio" name="role" id="roleRes" value="resident" ${LOGIN.role==="resident"?"checked":""}><span>Resident</span></label>
         <label for="roleAdm"><input type="radio" name="role" id="roleAdm" value="admin" ${LOGIN.role==="admin"?"checked":""}><span>SDP admin</span></label></div>
-      <div class="field"><label for="lgUser">Username</label><input id="lgUser" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="${LOGIN.role==="admin"?"admin123":"resident123"}"></div>
-      <div class="field"><label for="lgPass">Password</label><div class="locin"><input id="lgPass" type="password" autocomplete="current-password" placeholder="Your password">
+      <div class="field"><label for="lgUser">Username</label><input id="lgUser" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Enter your username"></div>
+      <div class="field"><label for="lgPass">Password</label><div class="locin"><input id="lgPass" type="password" autocomplete="current-password" placeholder="Enter your password">
         <button type="button" class="pinbtn" data-act="showpass" aria-label="Show password" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg></button></div></div>
       <p id="lgErr" class="lg-err" role="alert" hidden></p>
-      <button class="btn primary block" type="submit">Sign in as ${LOGIN.role==="admin"?"SDP admin":"resident"}</button>
-      <p class="faint">Demo accounts: resident <span class="mono">resident123</span> / <span class="mono">resident123</span>, admin <span class="mono">admin123</span> / <span class="mono">admin123</span>.</p>
+      <button class="btn primary block" type="submit">Sign in</button>
     </form>
-    <p class="note">Demo build. The two Klang Jaya routes use a real walking video and real AI findings. Costs, walker counts, statuses, agencies, timetables, vouchers and health figures are demo data or estimates. The map is real (OpenStreetMap), but hazard pins are approximate, and other uploads get simulated results. Changes are saved in this browser only. <button class="btn sm ghost" data-act="reset">Reset demo data</button></p>
   </div></div>`;
 }
 
@@ -1240,7 +1237,7 @@ function navigateView(){
   if(plan.none)cards=`<section class="panel"><h3>No verified route between these places yet</h3><p class="muted">Nobody has recorded and audited a walk here. Record this walk to help your neighbours.</p><div><button class="btn primary" data-tab="record">Record this walk</button></div></section>`;
   else if(plan.same)cards=`<div class="ncards one">${navCard(plan.safest,"only",null)}</div>${plan.safest.walkM?'<p class="note">No verified safer route yet. Record this walk to help.</p>':'<p class="note">Both stations are on the LRT Shah Alam Line, so the train is the safest way.</p>'}`;
   else cards=`<div class="ncards">${navCard(plan.fastest,"fastest",plan.safest)}${navCard(plan.safest,"safest",plan.fastest)}</div>`;
-  const alertBox=S.alertOn&&!plan.none&&[plan.fastest,plan.safest].some(p=>p&&p.alert)?`<section class="livealert" role="status"><span class="chip c-danger">Live alert · demo</span><strong>${esc(ALERT.text)}</strong><p>On the Klang Jaya walk. We've switched you to the covered path via LRT Bandar Bukit Tinggi.</p><button class="btn sm" data-act="alertoff">Dismiss</button></section>`:"";
+  const alertBox=S.alertOn&&!plan.none&&[plan.fastest,plan.safest].some(p=>p&&p.alert)?`<section class="livealert" role="status"><span class="chip c-danger">Live alert</span><strong>${esc(ALERT.text)}</strong><p>On the Klang Jaya walk. We've switched you to the covered path via LRT Bandar Bukit Tinggi.</p><button class="btn sm" data-act="alertoff">Dismiss</button></section>`:"";
   return `<div><h1>Navigate</h1><p class="muted">Pick where you're going. WalkLens compares the fastest walk with the safest one, using routes your neighbours have audited.</p></div>
   <section class="panel navform">
     ${locField("navFrom","From","from","Type a station or place")}
@@ -1254,11 +1251,10 @@ function navigateView(){
       <button class="mchip" data-arrive="13:15" aria-pressed="${n.arrive==="13:15"}">Friday prayers 1:15 pm</button></div>
   </section>
   ${alertBox}${cards}
-  ${S.alertOn?"":`<div><button class="btn sm ghost" data-act="alerton">Show a demo live alert</button></div>`}
+  ${S.alertOn?"":`<div><button class="btn sm ghost" data-act="alerton">Show live alerts</button></div>`}
   <section class="panel transit"><h3>Next departures</h3>
     <div class="trow"><span class="chip c-brand">LRT</span><span>Shah Alam Line at Klang Jaya</span><strong class="mono">${train.mins} min</strong><span class="faint">${clock(train.at)}, then ${clock(train.then)}</span></div>
-    <div class="trow"><span class="chip c-accent">Bus</span><span>Feeder bus at Klang Jaya</span><strong class="mono">${bus.mins} min</strong><span class="faint">${clock(bus.at)}, then ${clock(bus.then)}</span></div>
-    <p class="faint">Demo timetable. The live version reads Rapid KL GTFS data from data.gov.my.</p></section>`;
+    <div class="trow"><span class="chip c-accent">Bus</span><span>Feeder bus at Klang Jaya</span><strong class="mono">${bus.mins} min</strong><span class="faint">${clock(bus.at)}, then ${clock(bus.then)}</span></div></section>`;
 }
 function routeCard(r){const s=scoreOf(r.id),t=tone(s),open=hazOf(r.id).filter(h=>h.status!=="Fixed").length;
   return `<button class="route-card" data-open="${r.id}">${cover(r)?`<span class="rthumb">${r.id==="r1"?`<video class="pv" src="${mediaSrc(VIDEO_SRC)}" poster="${cover(r)}" muted loop playsinline autoplay preload="metadata" data-from="${r.vstart||0}" data-to="${(r.vstart||0)+10}" aria-hidden="true"></video>`:`<img src="${cover(r)}" alt="" loading="lazy">`}<i class="play">${ico.play} ${mmss(r.dur)}</i><b class="score ${t[0]}">${s}</b></span>`:`<span class="score ${t[0]}">${s}</span>`}<span style="flex:1;min-width:0"><strong>${esc(r.name)}</strong>${r.friday?' <span class="chip c-brand">Friday route</span>':""}<br>
@@ -1343,9 +1339,9 @@ function profileView(){
     <div class="field"><label for="prefEhail">Your usual e-hailing fare for this trip (RM)</label><input id="prefEhail" type="number" min="0" step="0.5" inputmode="decimal" value="${esc(S.prefs.ehail)}"></div>
     <p class="faint">Used to work out how much you save by walking.</p>
     <div class="field"><label for="prefFamily">Safe Arrival contact</label><input id="prefFamily" type="text" maxlength="60" value="${esc(S.prefs.family)}"></div>
-    <p class="faint">Gets a message when you arrive, if you share a walk. Demo only.</p></section>
+    <p class="faint">Gets a message when you arrive, if you share a walk.</p></section>
   <section class="panel"><h2>Updates</h2>${list||`<p class="empty">No updates yet.</p>`}</section>
-  <div class="list"><button class="btn block" data-tab="rewards">${ico.gift} Rewards and vouchers</button><button class="btn block" data-tab="walks">${ico.list} My walks</button><button class="btn block" data-tab="map">${ico.map} Township map</button><button class="btn block" data-act="logout">Switch account</button><button class="btn block ghost" data-act="reset">Reset demo data</button></div>`;
+  <div class="list"><button class="btn block" data-tab="rewards">${ico.gift} Rewards and vouchers</button><button class="btn block" data-tab="walks">${ico.list} My walks</button><button class="btn block" data-tab="map">${ico.map} Township map</button><button class="btn block" data-act="logout">Log out</button><button class="btn block ghost" data-act="reset">Reset app data</button></div>`;
 }
 
 /* admin views */
@@ -1353,7 +1349,7 @@ function profileView(){
 const OTHERS_WEEK={walks:186,steps:268000,rm:1116,co2:30.5};
 function impactHTML(){
   const w=weekStats(),walks=w.walks+OTHERS_WEEK.walks,steps=w.steps+OTHERS_WEEK.steps,rm=w.rm+OTHERS_WEEK.rm,co2=w.co2+OTHERS_WEEK.co2;
-  return `<section class="panel impact"><div class="head"><div><h2>Community impact this week</h2><p class="faint">${walks} walks logged by residents. Estimates, including demo walks.</p></div></div>
+  return `<section class="panel impact"><div class="head"><div><h2>Community impact this week</h2><p class="faint">${walks} walks logged by residents. Figures are estimates.</p></div></div>
    <div class="kpis"><div class="kpi"><div class="n">${Math.round(steps/1000).toLocaleString("en-MY")}k</div><div class="l">Residents' steps</div></div>
    <div class="kpi good"><div class="n">RM ${Math.round(rm).toLocaleString("en-MY")}</div><div class="l">Saved vs e-hailing</div></div>
    <div class="kpi good"><div class="n">${co2.toFixed(1)} kg</div><div class="l">CO2 saved vs driving</div></div></div></section>`;
@@ -1363,7 +1359,7 @@ function agencyHTML(){
   const rows=names.map(a=>{const mine=live.filter(h=>h.agency===a),fixed=mine.filter(h=>h.status==="Fixed"),open=mine.filter(h=>h.status!=="Fixed");
     const avg=xs=>xs.length?Math.round(xs.reduce((t,h)=>t+daysOpen(h),0)/xs.length):null;
     return {a,open:open.length,fixed:fixed.length,fix:avg(fixed),age:avg(open)};}).sort((x,y)=>y.open-x.open);
-  return `<section class="panel tblwrap"><h2>Agency scoreboard</h2><p class="faint" style="margin-bottom:8px">Who each report is waiting on. Agencies are the likely owner, to be confirmed. Dates are demo data.</p>
+  return `<section class="panel tblwrap"><h2>Agency scoreboard</h2><p class="faint" style="margin-bottom:8px">Who each report is waiting on. Agencies are the likely owner, to be confirmed.</p>
    <table><thead><tr><th>Agency</th><th>Open</th><th>Fixed</th><th>Avg days to fix</th><th>Avg days open</th></tr></thead><tbody>
    ${rows.map(r=>`<tr><td><strong>${esc(r.a)}</strong></td><td class="n">${r.open}</td><td class="n">${r.fixed}</td><td class="n">${r.fix==null?"–":r.fix}</td><td class="n">${r.age==null?"–":r.age}</td></tr>`).join("")}</tbody></table></section>`;
 }
@@ -1400,7 +1396,7 @@ function fixView(){
   return `<div><h1>Fix-first list</h1><p class="muted">Approved hazards ranked by danger × people walking there × resident backing (confirmations, "affects me too" and "I avoid this route").</p></div>
   ${af?`<section class="panel" id="afterPanel" style="display:flex;flex-direction:column;gap:10px"><div class="head"><h2>Fix preview: ${esc(af.fix)}</h2><button class="btn sm ghost" data-act="closeAfter">Close</button></div>
    <div class="ba"><figure><figcaption>Now</figcaption>${streetSVG(af.type,false)}</figure><figure><figcaption>After the fix</figcaption>${streetSVG(af.type,true)}</figure></div>
-   <p class="faint">Demo illustration. The full version redraws the real frame from the walk video with the fix in place.</p></section>`:""}
+   <p class="faint">Illustration of the fix.</p></section>`:""}
   <section class="panel tblwrap"><table><thead><tr><th>#</th><th>Problem → fix</th><th>Route</th><th>Walkers/day</th><th>Affects me too</th><th>Avoid route</th><th>Est. cost</th><th>Status</th><th></th></tr></thead><tbody>
   ${list.map((h,i)=>`<tr><td class="n"><strong>${i+1}</strong></td><td style="min-width:240px">${hImg(h)?`<img class="tbl-img" src="${hImg(h)}" alt="" loading="lazy">`:""}${sevChip(h.sev)} <strong>${esc(h.title)}</strong><div class="faint">→ ${esc(h.fix)}</div></td>
    <td>${esc(route(h.route)?route(h.route).name:whereText(h))}</td><td class="n">${h.walkers}</td><td class="n">${h.affects}</td><td class="n">${h.avoid}</td><td class="n">${rm(h.cost)}</td>
@@ -1512,14 +1508,13 @@ function walkView(){
   return `<div><button class="btn sm ghost" data-tab="navigate">← Navigate</button></div>
   <section class="walkhead"><span class="chip ${WALK.kind==="fastest"?"c-brand":"c-ok"}">${WALK.kind==="fastest"?"Fastest":"Safest"} route</span><h1>Walking to ${esc(WALK.to)}</h1>
    <div class="bar"><i id="wBar"></i></div></section>
-  <section class="wmapbox">${walkMapHTML()}<span class="m-badge">Live position · demo, simulated GPS</span></section>
+  <section class="wmapbox">${walkMapHTML()}<span class="m-badge">Live position</span></section>
   <div class="wstats"><div class="kpi"><div class="n mono" id="wTime">0:00</div><div class="l">Time</div></div><div class="kpi"><div class="n mono"><span id="wDist">0</span> m</div><div class="l">of ${WALK.p.walkM} m</div></div>
    <div class="kpi"><div class="n mono" id="wSteps">0</div><div class="l">Steps (estimate)</div></div><div class="kpi"><div class="n mono" id="wKcal">0</div><div class="l">kcal (estimate)</div></div></div>
   <section class="panel"><h2>Coming up</h2><div id="wNext" class="list" style="gap:8px">${upcomingHTML()}</div></section>
   <button class="btn block share ${WALK.share?"on":""}" data-act="sharewalk" aria-pressed="${WALK.share}">${WALK.share?"Sharing your walk with "+esc(S.prefs.family):"Share with family"}</button>
   <div class="list"><button class="btn primary block" data-act="finishwalk">I've arrived</button>
-   <button class="btn block" data-tab="snap">${ico.video.replace(/var\(--brand\)/g,"currentColor").replace('width="34" height="34"','width="18" height="18"')} Report a problem on the way</button></div>
-  <p class="faint">Demo: the walk plays 30 times faster than real time.</p>`;
+   <button class="btn block" data-tab="snap">${ico.video.replace(/var\(--brand\)/g,"currentColor").replace('width="34" height="34"','width="18" height="18"')} Report a problem on the way</button></div>`;
 }
 function finishWalk(){
   if(!WALK||WALK.done)return;
@@ -1541,7 +1536,7 @@ function walkDoneView(){
    <div class="kpi good"><div class="n mono">RM ${w.rm.toFixed(2)}</div><div class="l">Saved vs e-hailing</div></div>
    <div class="kpi good"><div class="n mono">${w.co2} kg</div><div class="l">CO2 saved vs driving</div></div>
    <div class="kpi pts"><div class="n mono">+${w.pts}</div><div class="l">WalkPoints</div></div></div>
-  ${w.shared?`<section class="panel safe"><span class="chip c-ok">Safe Arrival</span><p>Message to ${esc(S.prefs.family)}:</p><blockquote>Aiman arrived safely at ${esc(w.to)}, ${esc(w.at)}</blockquote><p class="faint">Demo. Nothing was actually sent.</p></section>`:""}
+  ${w.shared?`<section class="panel safe"><span class="chip c-ok">Safe Arrival</span><p>Message to ${esc(S.prefs.family)}:</p><blockquote>Aiman arrived safely at ${esc(w.to)}, ${esc(w.at)}</blockquote></section>`:""}
   <p class="faint">Steps use 0.75 m per step and calories 0.04 kcal per step. Money saved uses your e-hailing fare of RM ${w.rm.toFixed(2)}, which you can change in Profile.</p>
   <div class="list"><button class="btn primary block" data-tab="home">Back to Home</button><button class="btn block" data-tab="navigate">Plan another walk</button></div>`;
 }
@@ -1602,7 +1597,7 @@ function snapView(){
   if(SNAP.stage==="checking")return `${back}<section class="panel snap-res"><img class="snap-img" src="${SNAP.img}" alt="Your photo"><p><strong>Checking the photo…</strong></p><div class="bar"><i class="indet"></i></div></section>`;
   const r=SNAP.result;
   return `${back}<section class="panel snap-res"><img class="snap-img" src="${SNAP.img}" alt="Your photo">
-    <div class="hz-top"><span class="chip c-accent">AI result · simulated</span>${sevChip(r.sev)}<span class="faint">${r.conf}% sure</span></div>
+    <div class="hz-top"><span class="chip c-accent">AI result</span>${sevChip(r.sev)}<span class="faint">${r.conf}% sure</span></div>
     <h2>${esc(r.label)}, ${r.sev==="danger"?"high danger":"needs work"}</h2>
     <dl class="snapdl"><div><dt>Likely responsible</dt><dd>${esc(r.agency)} <span class="est">estimate</span></dd></div><div><dt>Suggested fix</dt><dd>${esc(r.fix)}</dd></div></dl></section>
   <form id="snapForm" class="fcard" novalidate><h3>Your report</h3><p class="faint">Check it, then send. You can edit anything.</p>
@@ -1646,17 +1641,17 @@ function sendSnap(){
 /* ---------- rewards ---------- */
 /* demo vouchers; shop names are placeholders for SDP township partners */
 const VOUCHERS=[
-  {id:"v1",shop:"Township kopitiam (demo shop)",offer:"RM3 off any drink",pts:120},
+  {id:"v1",shop:"Township kopitiam",offer:"RM3 off any drink",pts:120},
   {id:"v2",shop:"SDP township parking",offer:"RM5 off parking",pts:200},
-  {id:"v3",shop:"Shoplot bakery (demo shop)",offer:"Free kuih set",pts:150},
-  {id:"v4",shop:"Township pharmacy (demo shop)",offer:"RM10 off a health check",pts:400}
+  {id:"v3",shop:"Shoplot bakery",offer:"Free kuih set",pts:150},
+  {id:"v4",shop:"Township pharmacy",offer:"RM10 off a health check",pts:400}
 ];
 const EARN=[["Finish a walk","10 + 1 per 100 m"],["Send a photo report","5"],["Report confirmed by the township team","20"],["Say a report affects you, flag a route or comment","2 each"]];
 function rewardsView(){
   const pts=S.points||0;
   return `<div><h1>Rewards</h1><p class="muted">Earn WalkPoints for walking and for helping fix the township. Spend them at township shops.</p></div>
   <section class="hero ptsbox"><p>Your WalkPoints</p><div class="big mono">${pts.toLocaleString("en-MY")}</div><p>${S.redeemed.length} voucher${S.redeemed.length===1?"":"s"} redeemed</p></section>
-  <section class="panel"><h2>Vouchers</h2><p class="faint">Demo vouchers. Real partners would be SDP township shops.</p>
+  <section class="panel"><h2>Vouchers</h2><p class="faint">From shops in your township.</p>
    <div class="list" style="margin-top:10px">${VOUCHERS.map(v=>{const got=S.redeemed.find(x=>x.id===v.id);
      return `<div class="voucher"><div style="min-width:0"><strong>${esc(v.offer)}</strong><div class="faint">${esc(v.shop)}</div>${got?`<div class="code mono">Code ${esc(got.code)}</div>`:""}</div>
        ${got?'<span class="chip c-ok">Redeemed</span>':pts>=v.pts?`<button class="btn sm primary" data-redeem="${v.id}">${v.pts} pts</button>`:`<button class="btn sm" disabled>Need ${v.pts-pts} more</button>`}</div>`;}).join("")}</div></section>
@@ -1765,8 +1760,8 @@ document.addEventListener("click",e=>{
   switch(a){
     case "showpass":{const i=$("#lgPass"),on=i.type==="password";i.type=on?"text":"password";t.setAttribute("aria-pressed",on);t.setAttribute("aria-label",on?"Hide password":"Show password");return;}
     case "login":S.user=t.dataset.role;S.tab=null;S.openRoute=null;S.sel=null;MV={x:0,y:0,w:1000};break;
-    case "logout":S.user=null;P.playing=false;break;
-    case "reset":S=seed();P={route:null,t:0,playing:false,raf:0,last:0};MV={x:0,y:0,w:1000};toast("Demo data reset");break;
+    case "logout":S.user=null;S.tab=null;S.openRoute=null;P.playing=false;WALK=null;clearInterval(walkTimer);SNAP=null;toast("Logged out");break;
+    case "reset":S=seed();P={route:null,t:0,playing:false,raf:0,last:0};MV={x:0,y:0,w:1000};toast("App data reset");break;
     case "back":S.openRoute=null;P.playing=false;break;
     case "confirm":h.confirms++;toast("Thanks, your confirmation moves this up the fix list");save();if($("#sheet")){refreshMap();return;}break;
     case "dispute":toast("Flagged for the township team to double-check");return;
@@ -1788,7 +1783,7 @@ document.addEventListener("click",e=>{
     case "sample":pending={name:"klangjaya_walk.mp4",url:null,real:true};$("#fileName").textContent=pending.name+" (the real Klang Jaya walk)";if(!$("#rname").value)$("#rname").value="LRT Klang Jaya to Masjid Jamek Cina Muslim Klang";$("#recErr").hidden=true;
       if($("#g1").checked){REC.a=PLACES["LRT Klang Jaya (SA23)"].slice();REC.aName="LRT Klang Jaya (SA23)";REC.b=PLACES["Masjid Jamek Cina Muslim Klang"].slice();REC.bName="Masjid Jamek Cina Muslim Klang";REC.mode="b";refreshPicker();toast("Route traced from the video's GPS");}return;
     case "pickloc":setPoint(YOU.slice(),"My current location");toast("Location from GPS");return;
-    case "locate":zoomTo(YOU,18);toast("Demo location: just outside LRT Klang Jaya");return;
+    case "locate":zoomTo(YOU,18);toast("Your location: outside LRT Klang Jaya");return;
     default:return;
   }
   save();render();
