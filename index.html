@@ -1055,19 +1055,18 @@ function homeView(){
     <button class="btn primary block" data-tab="navigate">${ico.compass} Plan a walk</button></section>`;})()}
   <section class="hero photo" style="--img:url(media/frames/t100.jpg)"><h2 style="color:inherit">See a dangerous walk?</h2><p>Record it on your phone. The AI finds the problems and pins them on the map for the township team.</p><button class="btn" data-tab="record">${ico.video.replace(/var\(--brand\)/g,"currentColor").replace('width="34" height="34"','width="18" height="18"')} Record a walk</button><button class="btn ghost-light" data-tab="snap">Snap a problem</button></section>
   <div class="mini3"><button class="kpi kbtn" data-tab="walks"><div class="n">${mine.length}</div><div class="l">My walks</div></button><div class="kpi"><div class="n">${myHz.length}</div><div class="l">Hazards found</div></div><div class="kpi"><div class="n">${myHz.filter(h=>h.status==="Fixed").length}</div><div class="l">Fixed</div></div></div>
-  <div><div class="head" style="margin-bottom:10px"><h2>Community reports</h2><button class="btn sm ghost" data-tab="reports">See all</button></div>
-    <div class="hscroll">${POSTS.map(p=>postCard(p,false)).join("")}</div></div>
+  <div><div class="head" style="margin-bottom:10px"><h2>Walk videos</h2><button class="btn sm ghost" data-tab="reports">See all</button></div>
+    ${walkVideos()}</div>
   ${latest?`<section class="panel"><p class="faint">Latest update</p><strong>${esc(latest.text)}</strong></section>`:""}
   ${worst?`<div><h2 style="margin-bottom:8px">Least safe walk nearby</h2>${routeCard(worst)}</div>`:""}
   <button class="btn block" data-tab="map">${ico.map} Open the map</button>`;
 }
 /* community posts: one tile = one whole walk video. Only the Klang Jaya walk has a real video; the other is a sample. */
 const POSTS=[
-  {kind:"real",id:"r1",title:"LRT Klang Jaya to Masjid Jamek Cina Muslim",by:"Aiman Zulkifli"},
-  {kind:"sample",title:"LRT Stadium Shah Alam to MSU",by:"Sample post"},
-  {kind:"sample",title:"LRT Bandar Bukit Tinggi to Bukit Tinggi shoplots",by:"Sample post"},
-  {kind:"sample",title:"LRT Klang Jaya to Taman Klang Jaya surau",by:"Sample post"}
+  {kind:"real",id:"r1",title:"LRT Klang Jaya to Masjid Jamek Cina Muslim",by:"Aiman Zulkifli"}
 ];
+/* walk video posts: a single post fills the width instead of sitting alone in a scrolling row */
+const walkVideos=()=>POSTS.length===1?`<div class="list">${postCard(POSTS[0],true)}</div>`:`<div class="hscroll">${POSTS.map(p=>postCard(p,false)).join("")}</div>`;
 function postCard(p,big){
   if(p.kind==="real"){const r=route(p.id);if(!r)return"";const s=scoreOf(r.id),t=tone(s),open=hazOf(r.id).filter(h=>h.status!=="Fixed").length;
     return `<button class="pcard${big?" big":""}" data-open="${r.id}"><span class="pvid"><video class="pv" src="${mediaSrc(VIDEO_SRC)}" poster="${cover(r)}" muted loop playsinline autoplay preload="metadata" data-from="${r.vstart||0}" data-to="${(r.vstart||0)+10}" aria-hidden="true"></video><i class="play">${ico.play} ${mmss(r.dur)}</i><b class="score ${t[0]}">${s}</b></span>
@@ -1169,7 +1168,7 @@ function reportsView(){
     <button class="btn primary" data-tab="snap">${ico.video.replace(/var\(--brand\)/g,"currentColor").replace('width="34" height="34"','width="18" height="18"')} Snap a problem</button></div>
   <div class="modes" role="group" aria-label="Filter reports">${FEED_FILTERS.map(([k,l])=>`<button class="mchip" data-feed="${k}" aria-pressed="${(S.feedFilter||"all")===k}">${l}</button>`).join("")}</div>
   <div class="msearch rsearch">${ico.search}<label for="rsearch" style="position:absolute;left:-9999px">Search reports</label><input id="rsearch" type="search" placeholder="Search a place, route or agency" autocomplete="off"></div>
-  <div><h2 style="margin-bottom:8px">Walk videos</h2><div class="hscroll">${POSTS.map(p=>postCard(p,false)).join("")}</div></div>
+  <div><h2 style="margin-bottom:8px">Walk videos</h2>${walkVideos()}</div>
   <div class="list" id="rlist">${reportList("")}</div>`;
 }
 function react(kind,id){
