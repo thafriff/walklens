@@ -708,9 +708,16 @@ function boxHTML(h,box){let x,y,w,hh;
   return `<div class="aibox ${h.sev==="danger"?"":"w"} ${x+w>62?"r":""}" style="left:${x}%;top:${Math.max(y,6)}%;width:${w}%;height:${hh-(Math.max(y,6)-y)}%"><span>AI: ${esc(h.short)}${h.conf?` · ${h.conf}%`:""}</span></div>`;}
 
 /* ---------- player ---------- */
+/* Our static host sends the whole video file and ignores requests for a part of it, so a browser
+   cannot jump to a time in it and falls back to the start. We download the video once, keep it in
+   memory as a blob URL (which supports jumping anywhere) and redraw any video already on screen. */
+const VIDEO_SRC="media/klangjaya_walk.mp4";let videoBlob=null;
+const mediaSrc=m=>m===VIDEO_SRC&&videoBlob?videoBlob:m;
+fetch(VIDEO_SRC).then(r=>r.ok?r.blob():Promise.reject()).then(b=>{videoBlob=URL.createObjectURL(b);
+  if(document.querySelector('video[src="'+VIDEO_SRC+'"]')&&S.user)render();}).catch(()=>{});
 let P={route:null,t:0,playing:false,raf:0,last:0};
 function playerHTML(r){
-  const hz=hazOf(r.id),src=r.media||VIDEOS[r.id],uploaded=!!src;
+  const hz=hazOf(r.id),src=r.media?mediaSrc(r.media):VIDEOS[r.id],uploaded=!!src;
   return `<div class="player" id="player" data-route="${r.id}">
    <div class="screen ${r.media?"portrait":""}">${uploaded?`<video id="pvideo" src="${src}" playsinline preload="metadata"${r.media?' poster="media/poster.jpg"':""}></video>`:`<div id="pscene"></div>`}<div class="ovl" id="povl"></div></div>
    <div class="pbar"><button class="pp" id="pp" aria-label="Play">${ico.play}</button>
@@ -901,7 +908,7 @@ const POSTS=[
 ];
 function postCard(p,big){
   if(p.kind==="real"){const r=route(p.id);if(!r)return"";const s=scoreOf(r.id),t=tone(s),open=hazOf(r.id).filter(h=>h.status!=="Fixed").length;
-    return `<button class="pcard${big?" big":""}" data-open="${r.id}"><span class="pvid"><video class="pv" src="media/klangjaya_walk.mp4" poster="${cover(r)}" muted loop playsinline autoplay preload="metadata" data-from="${r.vstart||0}" data-to="${(r.vstart||0)+10}" aria-hidden="true"></video><i class="play">${ico.play} ${mmss(r.dur)}</i><b class="score ${t[0]}">${s}</b></span>
+    return `<button class="pcard${big?" big":""}" data-open="${r.id}"><span class="pvid"><video class="pv" src="${mediaSrc(VIDEO_SRC)}" poster="${cover(r)}" muted loop playsinline autoplay preload="metadata" data-from="${r.vstart||0}" data-to="${(r.vstart||0)+10}" aria-hidden="true"></video><i class="play">${ico.play} ${mmss(r.dur)}</i><b class="score ${t[0]}">${s}</b></span>
     <strong>${esc(p.title)}</strong><span class="faint">${esc(p.by)} · ${open} open hazard${open===1?"":"s"}</span></button>`;}
   return `<button class="pcard${big?" big":""}" data-sample="${POSTS.indexOf(p)}"><span class="pvid blank"><i class="play">${ico.play} Sample</i></span><strong>${esc(p.title)}</strong><span class="faint">${esc(p.by)} · no video yet</span></button>`;
 }
@@ -1150,7 +1157,7 @@ function navigateView(){
     <p class="faint">Demo timetable. The live version reads Rapid KL GTFS data from data.gov.my.</p></section>`;
 }
 function routeCard(r){const s=scoreOf(r.id),t=tone(s),open=hazOf(r.id).filter(h=>h.status!=="Fixed").length;
-  return `<button class="route-card" data-open="${r.id}">${cover(r)?`<span class="rthumb">${r.id==="r1"?`<video class="pv" src="media/klangjaya_walk.mp4" poster="${cover(r)}" muted loop playsinline autoplay preload="metadata" data-from="${r.vstart||0}" data-to="${(r.vstart||0)+10}" aria-hidden="true"></video>`:`<img src="${cover(r)}" alt="" loading="lazy">`}<i class="play">${ico.play} ${mmss(r.dur)}</i><b class="score ${t[0]}">${s}</b></span>`:`<span class="score ${t[0]}">${s}</span>`}<span style="flex:1;min-width:0"><strong>${esc(r.name)}</strong>${r.friday?' <span class="chip c-brand">Friday route</span>':""}<br>
+  return `<button class="route-card" data-open="${r.id}">${cover(r)?`<span class="rthumb">${r.id==="r1"?`<video class="pv" src="${mediaSrc(VIDEO_SRC)}" poster="${cover(r)}" muted loop playsinline autoplay preload="metadata" data-from="${r.vstart||0}" data-to="${(r.vstart||0)+10}" aria-hidden="true"></video>`:`<img src="${cover(r)}" alt="" loading="lazy">`}<i class="play">${ico.play} ${mmss(r.dur)}</i><b class="score ${t[0]}">${s}</b></span>`:`<span class="score ${t[0]}">${s}</span>`}<span style="flex:1;min-width:0"><strong>${esc(r.name)}</strong>${r.friday?' <span class="chip c-brand">Friday route</span>':""}<br>
   <span class="muted">${esc(r.from)} → ${esc(r.to)} · ${r.len} m</span><br><span class="chip ${t[0]}">${t[1]}</span> <span class="faint">${open} open hazard${open===1?"":"s"}</span></span></button>`;}
 function walksView(){
   const mine=S.routes.filter(r=>r.mine),others=S.routes.filter(r=>!r.mine);
