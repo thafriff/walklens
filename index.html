@@ -228,8 +228,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand);b
 
 /* floating pill bottom nav: icon circles, active one shows its label */
 .bnav{background:none;border:0;padding:0 max(16px,env(safe-area-inset-left,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-right,0px));pointer-events:none}
-.bnav-in{display:flex;justify-content:center;gap:12px;width:fit-content;max-width:100%;padding:8px 14px;background:var(--surface);border:1px solid var(--line);border-radius:999px;box-shadow:0 14px 34px -10px rgba(60,15,22,.3);pointer-events:auto;max-width:420px}
-.bnav button{flex-direction:row;justify-content:center;font-size:0;gap:0;width:46px;height:46px;flex:none;padding:0;border-radius:999px;background:var(--sunk);color:var(--muted);transition:background .2s,transform .15s}
+.bnav-in{display:flex;justify-content:center;gap:6px;width:fit-content;max-width:100%;padding:8px 10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;box-shadow:0 14px 34px -10px rgba(60,15,22,.3);pointer-events:auto;max-width:420px}
+.bnav button{flex-direction:row;justify-content:center;font-size:0;gap:0;width:44px;height:44px;flex:none;padding:0;border-radius:999px;background:var(--sunk);color:var(--muted);transition:background .2s,transform .15s}
 .bnav button:active{transform:scale(.92)}
 .bnav button[aria-current="page"]{background:var(--brand);color:var(--brand-ink);animation:navpop .35s var(--ease)}
 .bnav .dot{top:9px;left:auto;right:11px;border:2px solid var(--surface)}
@@ -381,7 +381,8 @@ main>*{min-width:0}
 .pinbtn{flex:none;width:46px;min-height:46px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--brand);display:grid;place-items:center}
 .pinbtn[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
 .pickwrap{display:flex;flex-direction:column;gap:8px}
-.bnav button.recbtn{width:56px;height:56px;margin-top:-14px;background:var(--brand);color:var(--brand-ink);box-shadow:0 10px 20px -8px rgba(212,42,59,.7);border:3px solid var(--surface)}
+/* Record sits level with the other buttons; it is always red so it stands out, darker when open */
+.bnav button.recbtn{background:var(--brand);color:var(--brand-ink)}
 .bnav button.recbtn[aria-current="page"]{background:#A3162A}
 .bnav-in{align-items:center}
 .ptspill{display:inline-flex;align-items:center;gap:5px;border:0;background:var(--brand-soft);color:var(--brand);border-radius:999px;padding:.3rem .7rem;font-weight:700;font-size:.82rem}
@@ -717,9 +718,9 @@ function streetSVG(type,after){
 }
 
 /* ---------- shell ---------- */
-const RES_TABS=[["home","Home",ico.home],["navigate","Navigate",ico.compass],["record","Record a walk",ico.rec],["reports","Community",ico.people],["profile","Profile",ico.user]];
+const RES_TABS=[["home","Home",ico.home],["navigate","Navigate",ico.compass],["record","Record a walk",ico.rec],["reports","Community",ico.people],["rewards","Rewards",ico.gift],["profile","Profile",ico.user]];
 /* screens without their own nav button light up the button they belong to */
-const NAV_PARENT={map:"home",rewards:"profile",snap:"reports",walk:"navigate",walkdone:"navigate",walks:"profile",sample:"reports"};
+const NAV_PARENT={map:"home",snap:"reports",walk:"navigate",walkdone:"navigate",walks:"profile",sample:"reports"};
 let lastKey="";
 function render(){
   cancelAnimationFrame(P.raf);
@@ -1377,7 +1378,7 @@ function runSnap(img,meta){
   classifyPhoto(meta).then(r=>{if(!SNAP)return;SNAP.stage="result";SNAP.result=r;render();});
 }
 function snapView(){
-  const back=`<div><button class="btn sm ghost" data-tab="reports">← Community</button></div>`;
+  const back="";
   if(!SNAP)return `${back}<div><h1>Snap a problem</h1><p class="muted">Take a photo of something unsafe on your walk. The AI says what it is, who is likely responsible and drafts the report for you.</p></div>
     <section class="panel snap-drop"><label class="btn primary" for="snapFile">${ico.video.replace(/var\(--brand\)/g,"currentColor").replace('width="34" height="34"','width="18" height="18"')} Take or choose a photo<input id="snapFile" type="file" accept="image/*" capture="environment" hidden></label>
       <p class="faint">No photo handy? Try a sample from the Klang Jaya walk.</p>
@@ -1415,7 +1416,7 @@ const VOUCHERS=[
 const EARN=[["Finish a walk","10 + 1 per 100 m"],["Send a photo report","5"],["Report confirmed by the township team","20"],["Say a report affects you, flag a route or comment","2 each"]];
 function rewardsView(){
   const pts=S.points||0;
-  return `<div><button class="btn sm ghost" data-tab="profile">← Profile</button></div><div><h1>Rewards</h1><p class="muted">Earn WalkPoints for walking and for helping fix the township. Spend them at township shops.</p></div>
+  return `<div><h1>Rewards</h1><p class="muted">Earn WalkPoints for walking and for helping fix the township. Spend them at township shops.</p></div>
   <section class="hero ptsbox"><p>Your WalkPoints</p><div class="big mono">${pts.toLocaleString("en-MY")}</div><p>${S.redeemed.length} voucher${S.redeemed.length===1?"":"s"} redeemed</p></section>
   <section class="panel"><h2>Vouchers</h2><p class="faint">Demo vouchers. Real partners would be SDP township shops.</p>
    <div class="list" style="margin-top:10px">${VOUCHERS.map(v=>{const got=S.redeemed.find(x=>x.id===v.id);
