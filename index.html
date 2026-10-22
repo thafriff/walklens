@@ -50,7 +50,7 @@ button{cursor:pointer}
 .btn.sm{min-height:34px;padding:.3rem .7rem;font-size:.85rem}
 .btn.ghost{background:transparent}
 .btn.block{width:100%}
-input[type=text],input[type=search],select,textarea{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:.55rem .75rem;min-height:42px;width:100%}
+input[type=text],input[type=search],input[type=password],input[type=number],input[type=time],select,textarea{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:.55rem .75rem;min-height:42px;width:100%}
 textarea{min-height:90px;resize:vertical}
 label{font-weight:600;font-size:.9rem}
 
@@ -197,7 +197,7 @@ body::before{background:var(--bg)}
 .btn:hover{transform:translateY(-1px)} .btn:active{transform:scale(.97)}
 .btn.sm{min-height:36px;border-radius:12px}
 .btn.primary,.btn.accent{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);box-shadow:0 8px 18px -8px color-mix(in srgb,var(--brand) 75%,transparent)}
-input[type=text],input[type=search],select,textarea{border-radius:14px;min-height:46px;transition:border-color .2s,box-shadow .2s}
+input[type=text],input[type=search],input[type=password],input[type=number],input[type=time],select,textarea{border-radius:14px;min-height:46px;transition:border-color .2s,box-shadow .2s}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
 
 .panel,.kpi,.fcard,.route-card,.acct,.persona{border-color:transparent;box-shadow:0 1px 2px rgba(60,15,22,.05),0 10px 28px -14px rgba(60,15,22,.18)}
@@ -442,6 +442,16 @@ main>*{min-width:0}
 /* keep each map's layers inside it, so sheets, the photo viewer, toasts and the nav stay on top */
 .mapbox,.lmini,.lpick,.lwalk,.wmapbox{isolation:isolate}
 .wmapbox .m-badge{z-index:500;position:absolute;left:10px;top:10px;bottom:auto}
+
+/* sign in */
+.signin{display:flex;flex-direction:column;gap:12px}
+.roleseg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--sunk);border-radius:14px;padding:4px}
+.roleseg label{position:relative;cursor:pointer}
+.roleseg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.roleseg span{display:block;text-align:center;padding:.55rem;border-radius:11px;font-weight:700;color:var(--muted);transition:background .2s,color .2s}
+.roleseg input:checked+span{background:var(--surface);color:var(--brand);box-shadow:0 1px 3px rgba(60,15,22,.15)}
+.roleseg input:focus-visible+span{outline:2px solid var(--brand);outline-offset:2px}
+.lg-err{color:var(--danger);font-weight:600;font-size:.88rem;background:var(--danger-soft);border-radius:12px;padding:8px 12px}
 
 /* motion: views rise in once per navigation; nothing loops */
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
@@ -940,16 +950,37 @@ function adminView(){
   return "";
 }
 
+/* Demo sign-in. These accounts are checked in the browser only, which is fine for a prototype; the real
+   app would check them on a server and never ship passwords in the page. */
+const DEMO_ACCOUNTS={resident:{user:"resident123",pass:"resident123"},admin:{user:"admin123",pass:"admin123"}};
+let LOGIN={role:"resident"};
+function signIn(){
+  const role=LOGIN.role,u=$("#lgUser").value.trim().toLowerCase(),pw=$("#lgPass").value,err=$("#lgErr"),acc=DEMO_ACCOUNTS[role];
+  const fail=m=>{err.textContent=m;err.hidden=false;$("#lgPass").value="";$("#lgPass").focus();};
+  if(!u||!pw)return fail("Enter your username and password.");
+  if(u===acc.user&&pw===acc.pass){S.user=role;S.tab=null;S.openRoute=null;S.sel=null;save();render();window.scrollTo(0,0);toast(role==="admin"?"Signed in as SDP admin":"Welcome back, Aiman");return;}
+  const other=role==="admin"?"resident":"admin",o=DEMO_ACCOUNTS[other];
+  if(u===o.user&&pw===o.pass)return fail(`That's the ${other==="admin"?"SDP admin":"resident"} account. Switch to ${other==="admin"?"SDP admin":"Resident"} above to use it.`);
+  fail("That username or password isn't right. Check them and try again.");
+}
 function loginView(){
   return `<div class="wrap res login"><div class="login-card">
     <div class="collage" aria-hidden="true"><img src="media/frames/t10.jpg" alt=""><img src="media/frames/t100.jpg" alt=""><img src="media/frames/t148.jpg" alt=""></div>
     <div class="logo" style="font-size:1.5rem"><span class="logo-mark" style="color:var(--brand-ink)">${ico.walk}</span>WalkLens</div>
     <h1>Your daily walking companion</h1>
     <p class="muted">WalkLens gets you to the station safely, tracks your health and savings, and rewards you. Every walk helps fix the township.</p>
-    <div class="list">
-      <button class="acct" data-act="login" data-role="resident"><span class="avatar c-brand">AZ</span><span><strong>Sign in as a resident</strong><br><span class="muted">Aiman Zulkifli · Klang Jaya, Klang</span></span></button>
-      <button class="acct" data-act="login" data-role="admin"><span class="avatar c-accent">SDP</span><span><strong>Sign in as an admin</strong><br><span class="muted">SDP township team · all townships</span></span></button>
-    </div>
+    <form id="loginForm" class="panel signin" novalidate>
+      <h2>Sign in</h2>
+      <div class="roleseg" role="radiogroup" aria-label="Sign in as">
+        <label for="roleRes"><input type="radio" name="role" id="roleRes" value="resident" ${LOGIN.role==="resident"?"checked":""}><span>Resident</span></label>
+        <label for="roleAdm"><input type="radio" name="role" id="roleAdm" value="admin" ${LOGIN.role==="admin"?"checked":""}><span>SDP admin</span></label></div>
+      <div class="field"><label for="lgUser">Username</label><input id="lgUser" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="${LOGIN.role==="admin"?"admin123":"resident123"}"></div>
+      <div class="field"><label for="lgPass">Password</label><div class="locin"><input id="lgPass" type="password" autocomplete="current-password" placeholder="Your password">
+        <button type="button" class="pinbtn" data-act="showpass" aria-label="Show password" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg></button></div></div>
+      <p id="lgErr" class="lg-err" role="alert" hidden></p>
+      <button class="btn primary block" type="submit">Sign in as ${LOGIN.role==="admin"?"SDP admin":"resident"}</button>
+      <p class="faint">Demo accounts: resident <span class="mono">resident123</span> / <span class="mono">resident123</span>, admin <span class="mono">admin123</span> / <span class="mono">admin123</span>.</p>
+    </form>
     <p class="note">Demo build. The two Klang Jaya routes use a real walking video and real AI findings. Costs, walker counts, statuses, agencies, timetables, vouchers and health figures are demo data or estimates. The map is real (OpenStreetMap), but hazard pins are approximate, and other uploads get simulated results. Changes are saved in this browser only. <button class="btn sm ghost" data-act="reset">Reset demo data</button></p>
   </div></div>`;
 }
@@ -1732,6 +1763,7 @@ document.addEventListener("click",e=>{
   if(t.dataset.open){S.openRoute=t.dataset.open;S.tab=isAdmin()?"dash":"walks";save();render();window.scrollTo(0,0);return;}
   const a=t.dataset.act,id=t.dataset.id,h=id&&S.hazards.find(x=>x.id===id);
   switch(a){
+    case "showpass":{const i=$("#lgPass"),on=i.type==="password";i.type=on?"text":"password";t.setAttribute("aria-pressed",on);t.setAttribute("aria-label",on?"Hide password":"Show password");return;}
     case "login":S.user=t.dataset.role;S.tab=null;S.openRoute=null;S.sel=null;MV={x:0,y:0,w:1000};break;
     case "logout":S.user=null;P.playing=false;break;
     case "reset":S=seed();P={route:null,t:0,playing:false,raf:0,last:0};MV={x:0,y:0,w:1000};toast("Demo data reset");break;
@@ -1771,6 +1803,7 @@ document.addEventListener("change",e=>{
   if(el.id==="pseek"){seek(+el.value);return;}
   if(el.id==="navFrom"||el.id==="navTo"){const v=el.value.trim();S.nav[el.id==="navFrom"?"from":"to"]=resolvePlace(v)||v;save();render();return;}
   if(el.id==="snapFile"&&el.files[0]){const f=el.files[0];shrinkPhoto(f).then(img=>runSnap(img,{name:f.name,size:f.size})).catch(()=>toast("That photo couldn't be read. Try another one."));return;}
+  if(el.name==="role"){LOGIN.role=el.value;const u=$("#lgUser").value;render();$("#lgUser").value=u;return;}
   if(el.id==="prefFamily"){S.prefs.family=el.value.trim()||"Family";save();toast("Contact saved");return;}
   if(el.id==="prefEhail"){const v=parseFloat(el.value);S.prefs.ehail=isFinite(v)&&v>=0?v:6;save();toast("Fare saved");return;}
   if(el.id==="navArrive"){S.nav.arrive=el.value||"13:15";save();render();return;}
@@ -1789,6 +1822,7 @@ document.addEventListener("input",e=>{
   if(el.closest&&el.closest("#preForm")){const er=$("#preErr");if(er)er.hidden=true;}
 });
 document.addEventListener("submit",e=>{e.preventDefault();
+  if(e.target.id==="loginForm"){signIn();return;}
   if(e.target.id==="snapForm"){sendSnap();return;}
   if(e.target.id==="cmtForm"){const h=S.hazards.find(x=>x.id===e.target.dataset.id),v=$("#cmtText").value.trim();if(!h||!v)return;
     h.comments.push({who:"Aiman Zulkifli",text:v,at:isoDay(0)});if(!S.mine.rewarded.includes("cmt"+h.id)){S.mine.rewarded.push("cmt"+h.id);addPoints(2,"Commented on a report");}save();render();toast("Comment posted");return;}if(e.target.id==="recForm")runAnalysis();if(e.target.id==="preForm")runPrebuild();});
