@@ -558,7 +558,6 @@ function seed(){
       {id:"h12",route:"r2",t:18,type:"walkway",short:"Desire path",title:"Worn desire path across the grass, no paved route",sev:"warn",fix:"Pave the desire path, since people already walk here",cost:30000,walkers:200,confirms:3,status:"Approved",box:[0.0,0.50,0.70,0.48]},
       {id:"h13",route:"r2",t:25,type:"crossing",short:"No crossing",title:"Crossing a multi-lane road with no pedestrian crossing",sev:"danger",fix:"Signalised pedestrian crossing",cost:120000,walkers:200,confirms:4,status:"Sent to council",box:[0.0,0.48,1.0,0.40]}
     ],
-    prebuild:null,
     prefs:{ehail:6,family:"Mum (Puan Rohani)"},
     /* demo walk history: the last four days, so the weekly totals and streak have something to show */
     walksLog:[1,2,3,4].map(d=>{const dist=d%2?750:900,steps=Math.round(dist/0.75);return {date:isoDay(-d),from:d%2?"LRT Klang Jaya (SA23)":"LRT Bandar Bukit Tinggi",to:"Masjid Jamek Cina Muslim Klang",kind:d%2?"fastest":"safest",dist,steps,kcal:Math.round(steps*0.04),mins:Math.round(dist/1.3/60),rm:6,co2:+(dist/1000*0.17).toFixed(2),pts:10+Math.floor(dist/100),at:"1:05 pm"};}),
@@ -938,7 +937,7 @@ function render(){
   const app=$("#app");
   if(!S.user){lastKey="";app.innerHTML=loginView();return;}
   if(isAdmin()){
-    const tabs=[["dash","Dashboard"],["amap","Map"],["review","Review queue",S.hazards.filter(h=>h.status==="Pending review").length],["fix","Fix-first list"],["pre","Pre-build audit"],["users","Users"]];
+    const tabs=[["dash","Dashboard"],["amap","Map"],["review","Review queue",S.hazards.filter(h=>h.status==="Pending review").length],["fix","Fix-first list"],["users","Users"]];
     if(!S.tab||!tabs.some(t=>t[0]===S.tab))S.tab="dash";
     app.innerHTML=`<header class="top"><div class="wrap adm"><div class="top-row"><div class="logo"><span class="logo-mark" style="color:var(--brand-ink)">${ico.walk}</span>WalkLens <span class="faint" style="font-weight:600">Township console</span></div>
       <div class="who"><span class="role-pill">Admin</span><span class="muted">SDP Township Team</span><button class="btn sm" data-act="logout">Log out</button></div></div>
@@ -1009,7 +1008,6 @@ function adminView(){
     case "amap":mapRatio=0.5625;return `<div class="head"><div><h1>Township map</h1><p class="muted">Every audited route and AI finding. Pending findings are shown too.</p></div></div>${mapBlock("wide")}`;
     case "review":return reviewView();
     case "fix":return fixView();
-    case "pre":return preView();
     case "users":return usersView();
   }
   return "";
@@ -1466,25 +1464,6 @@ function fixView(){
   </tbody></table></section>
   <p class="faint">Total for open items: <strong class="mono">${rm(list.filter(h=>h.status!=="Fixed").reduce((a,h)=>a+h.cost,0))}</strong>. Costs are rough estimates to confirm with the council.</p>`;
 }
-const PERSONAS=[{id:"elder",name:"Elderly resident",speed:.8,note:"Walks slowly, needs rest stops"},{id:"wheel",name:"Wheelchair user",speed:.9,note:"Needs ramps and a level, continuous path"},
- {id:"student",name:"Student",speed:1.2,note:"No car, walks early and after dark"},{id:"friday",name:"Friday worshipper",speed:1.1,note:"Station to mosque before 1 pm"},{id:"parent",name:"Parent with stroller",speed:.85,note:"Needs wide, shaded paths"}];
-const PRE={elder:[["Path from Block C to station is 1.1 km with no seating","Add 3 shaded benches along the route"]],
- wheel:[["Kerb at main gate has no ramp","Add kerb ramp at gate"],["Footbridge to station has stairs only","Add lift or ramp to footbridge"]],
- student:[["Back lane to station has no street lighting","Light the lane, 8 poles"]],friday:[["Shortest path to mosque crosses 4-lane road with no crossing","Add signalised crossing at the junction"]],
- parent:[["Pavement narrows to 0.9 m at the shoplots","Widen pavement to 1.8 m"],["No shade along the park edge","Plant shade trees"]]};
-function preView(){
-  const p=S.prebuild;
-  return `<div><h1>Pre-build audit</h1><p class="muted">Test a township plan before it's built. AI residents walk from home to the station on the plan and flag problems while they're still cheap to fix.</p></div>
-  <section class="panel"><form class="list" id="preForm" novalidate>
-   <div class="form-row"><div class="field"><label for="plan">Township plan</label><select id="plan"><option>Sample: Precinct 3 masterplan (Rev C)</option><option>Sample: Station Square mixed-use block</option></select></div>
-   <div class="field"><label for="planFile">Or upload a plan or render</label><input id="planFile" type="file" accept="image/*"></div></div>
-   <div class="field"><span style="font-weight:600;font-size:.9rem">AI residents to send through the plan</span><div class="form-row">${PERSONAS.map(x=>`<label class="persona" for="p-${x.id}"><input type="checkbox" id="p-${x.id}" checked><span><strong>${x.name}</strong><br><span class="faint">${x.note}</span></span></label>`).join("")}</div></div>
-   <p id="preErr" class="faint" style="color:var(--danger)" hidden></p><div><button class="btn primary" type="submit">Run pre-build audit</button></div></form></section>
-  ${p?`<section class="panel" style="display:flex;flex-direction:column;gap:12px"><div class="head"><div><h2>Results: ${esc(p.plan)}</h2><p class="faint">${p.n} AI residents walked home → station</p></div><span class="chip ${tone(p.score)[0]}">Plan walk score ${p.score}</span></div>
-   ${p.img?`<img src="${p.img}" alt="Uploaded plan" style="max-height:220px;object-fit:contain;border-radius:8px;border:1px solid var(--line)">`:""}
-   <div class="tblwrap"><table><thead><tr><th>AI resident</th><th>Walk time</th><th>Problem found</th><th>Fix on the drawing</th></tr></thead><tbody>${p.rows.map(r=>`<tr><td><strong>${esc(r.who)}</strong></td><td class="n">${r.mins} min</td><td>${esc(r.issue)}</td><td>${esc(r.fix)}</td></tr>`).join("")}</tbody></table></div>
-   <p class="note">Fixing these on the plan costs design time only. The same fixes after construction become a retrofit project that needs council approval.</p></section>`:""}`;
-}
 function usersView(){
   return `<div><h1>Users</h1><p class="muted">People who can upload walks or manage fixes.</p></div>
   <section class="panel tblwrap"><table><thead><tr><th>Name</th><th>Role</th><th>Township</th><th>Walks</th><th>Status</th><th></th></tr></thead><tbody>
@@ -1793,14 +1772,6 @@ function finish(name,from,to,gsrc,realDur,A,B){
   notify(`AI audit ready for "${name}": ${pool.length} hazards found and pinned on the map. The township team will review them.`);
   pending=null;S.tab="walks";S.openRoute=id;P.route=null;save();render();window.scrollTo(0,0);toast("AI audit complete");
 }
-function runPrebuild(){
-  const chosen=PERSONAS.filter(x=>$("#p-"+x.id).checked);
-  if(!chosen.length){const e=$("#preErr");e.textContent="Pick at least one AI resident.";e.hidden=false;return;}
-  const plan=$("#plan").value,f=$("#planFile").files[0];
-  const done=img=>{const rows=[];chosen.forEach(x=>PRE[x.id].forEach(([issue,fix])=>rows.push({who:x.name,mins:Math.round(11/x.speed),issue,fix})));
-    S.prebuild={plan:f?f.name:plan,n:chosen.length,rows,score:Math.max(20,100-rows.length*9),img:img||null};save();render();toast("Pre-build audit complete");};
-  if(f){const fr=new FileReader();fr.onload=()=>done(fr.result.length<3e6?fr.result:null);fr.readAsDataURL(f);}else done();
-}
 
 /* ---------- events ---------- */
 function openWatch(hid){const h=S.hazards.find(x=>x.id===hid);if(!h)return;
@@ -1895,7 +1866,6 @@ document.addEventListener("input",e=>{
   if(el.id==="snapWalkQ"&&SNAP){SNAP.q=el.value;const l=$("#snapWalks");if(l)l.innerHTML=snapWalkList();}
   if(el.id==="note")$("#ncount").textContent=el.value.length+"/500";
   if(el.id==="msearch"){geoSearch(el,"main");}
-  if(el.closest&&el.closest("#preForm")){const er=$("#preErr");if(er)er.hidden=true;}
 });
 document.addEventListener("submit",e=>{e.preventDefault();
   if(e.target.id==="loginForm"){signIn();return;}
@@ -1904,7 +1874,7 @@ document.addEventListener("submit",e=>{e.preventDefault();
     FAREEDIT=false;save();render();toast("Saved. WalkLens will use RM "+amt.toFixed(2)+" for this trip.");return;}
   if(e.target.id==="snapForm"){sendSnap();return;}
   if(e.target.id==="cmtForm"){const h=S.hazards.find(x=>x.id===e.target.dataset.id),v=$("#cmtText").value.trim();if(!h||!v)return;
-    h.comments.push({who:"Aiman Zulkifli",text:v,at:isoDay(0)});if(!S.mine.rewarded.includes("cmt"+h.id)){S.mine.rewarded.push("cmt"+h.id);addPoints(2,"Commented on a report");}save();render();toast("Comment posted");return;}if(e.target.id==="recForm")runAnalysis();if(e.target.id==="preForm")runPrebuild();});
+    h.comments.push({who:"Aiman Zulkifli",text:v,at:isoDay(0)});if(!S.mine.rewarded.includes("cmt"+h.id)){S.mine.rewarded.push("cmt"+h.id);addPoints(2,"Commented on a report");}save();render();toast("Comment posted");return;}if(e.target.id==="recForm")runAnalysis();});
 
 render();
 })();
