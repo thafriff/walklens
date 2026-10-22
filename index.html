@@ -456,6 +456,17 @@ main>*{min-width:0}
 .roleseg input:focus-visible+span{outline:2px solid var(--brand);outline-offset:2px}
 .lg-err{color:var(--danger);font-weight:600;font-size:.88rem;background:var(--danger-soft);border-radius:12px;padding:8px 12px}
 
+/* walking view and fares */
+.wmapbox{background:var(--map)}
+.lwalk{position:relative;height:340px;overflow:hidden;perspective:640px;perspective-origin:50% 76%;background:var(--map)}
+.lw-inner{position:absolute;width:300%;height:340%;left:-100%;top:-94%;transform:rotateX(56deg) rotate(var(--bear,0deg));transform-origin:50% 50%;transition:transform .9s linear;z-index:0}
+.lwalk::after{content:"";position:absolute;inset:0 0 auto;height:22%;background:linear-gradient(var(--map),color-mix(in srgb,var(--map) 0%,transparent));pointer-events:none;z-index:1}
+.lw-you{position:absolute;left:50%;top:76%;transform:translate(-50%,-50%);z-index:2;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
+.lw-attr{position:absolute;right:8px;bottom:6px;z-index:2;font-size:.66rem;color:var(--muted);background:color-mix(in srgb,var(--surface) 80%,transparent);padding:1px 6px;border-radius:6px}
+.kpi.fare{display:flex;flex-direction:column;gap:6px}
+.kpi.fare .btn{align-self:flex-start}
+.fare-form{display:flex;flex-direction:column;gap:4px;font-size:.82rem}
+
 /* motion: views rise in once per navigation; nothing loops */
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes navpop{from{transform:scale(.88)}to{transform:none}}
@@ -544,7 +555,7 @@ function seed(){
     walksLog:[1,2,3,4].map(d=>{const dist=d%2?750:900,steps=Math.round(dist/0.75);return {date:isoDay(-d),from:d%2?"LRT Klang Jaya (SA23)":"LRT Bandar Bukit Tinggi",to:"Masjid Jamek Cina Muslim Klang",kind:d%2?"fastest":"safest",dist,steps,kcal:Math.round(steps*0.04),mins:Math.round(dist/1.3/60),rm:6,co2:+(dist/1000*0.17).toFixed(2),pts:10+Math.floor(dist/100),at:"1:05 pm"};}),
     points:240,
     pointsLog:[{pts:17,text:"Walk to Masjid Jamek Cina Muslim Klang",at:isoDay(-1)},{pts:20,text:"Report confirmed by the township team",at:isoDay(-2)},{pts:19,text:"Walk to Masjid Jamek Cina Muslim Klang",at:isoDay(-2)},{pts:184,text:"Earlier activity",at:isoDay(-30)}],
-    lastWalk:null,
+    lastWalk:null,fares:{},
     redeemed:[],buddy:[],alertOn:true,
     follow:[],mine:{affects:[],avoid:[],rewarded:[],confirmed:[],disputed:[]},feedFilter:"all",openCmt:null,
     nav:{from:"LRT Klang Jaya (SA23)",to:"Masjid Jamek Cina Muslim Klang",modes:{rain:false,night:false,wheel:false},arrive:"13:15",map:false}
@@ -708,16 +719,16 @@ function drawPick(el){
 }
 /* live walk map that follows you */
 function drawWalkMap(el){
-  const m=newMap(el,{zoomControl:false,scrollWheelZoom:false});if(!m||!WALK)return;
+  const m=newMap(el,{zoomControl:false,attributionControl:false,scrollWheelZoom:false,dragging:false,touchZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false});if(!m||!WALK)return;
   const all=WALK.segs.flatMap(s=>s.pts).map(toLL),pos=walkPos(WALK.dist);
   L.polyline(all,{color:"#fff",weight:9,opacity:.9}).addTo(m);
   L.polyline(all,{color:cssv("--faint"),weight:3,dashArray:"6 6"}).addTo(m);
   const done=L.polyline(pos.done.map(toLL),{color:cssv("--brand"),weight:6,lineCap:"round"}).addTo(m);
   const marks=WALK.marks.map(mk=>L.marker(toLL(hxy(mk.h)),{icon:dotIcon(colorOf(mk.h.sev==="danger"?"var(--danger)":"var(--warn)"),"!",22),title:mk.h.short}).addTo(m));
   L.marker(all[all.length-1],{icon:placeIcon(WALK.to.replace(/^LRT /,"").split(" (")[0],"end"),interactive:false}).addTo(m);
-  const you=L.marker(toLL(pos.at),{icon:youIcon(),interactive:false,zIndexOffset:1000}).addTo(m);
-  m.setView(toLL(pos.at),18);
-  WMAP={map:m,you,done,marks};
+  const you=L.marker(toLL(pos.at),{icon:L.divIcon({className:"",iconSize:[1,1],html:""}),interactive:false}).addTo(m);
+  m.setView(toLL(pos.at),19);
+  WMAP={map:m,you,done,marks};WALK.bear=null;setBearing(walkBearing(WALK.dist));
 }
 function mountMaps(){
   document.querySelectorAll("[data-lmap]").forEach(el=>{
@@ -885,6 +896,7 @@ let lastKey="";
 function render(){
   cancelAnimationFrame(P.raf);
   closeReportSheet();closeZoom();killMaps();
+  if(S.tab!=="walkdone")FAREEDIT=false;
   /* every hazard needs its community fields, including after "Reset demo data" swaps in fresh seed data */
   S.hazards.forEach(fillHazard);
   const app=$("#app");
@@ -1351,8 +1363,8 @@ function profileView(){
   setTimeout(()=>{S.notifs.forEach(n=>n.read=true);save();},0);
   return `<section class="panel" style="display:flex;gap:14px;align-items:center"><span class="avatar c-brand">AZ</span><div><h2>Aiman Zulkifli</h2><p class="faint">Klang Jaya, Klang · ${S.users[0].walks} walks recorded</p></div></section>
   <section class="panel settings"><h2>Settings</h2>
-    <div class="field"><label for="prefEhail">Your usual e-hailing fare for this trip (RM)</label><input id="prefEhail" type="number" min="0" step="0.5" inputmode="decimal" value="${esc(S.prefs.ehail)}"></div>
-    <p class="faint">Used to work out how much you save by walking.</p>
+    <div class="field"><span class="flabel">E-hailing fares</span><p class="faint">Money saved uses an estimated fare for each trip, based on its distance. Correct it on a walk summary and WalkLens remembers it for that trip.</p>
+      ${Object.entries(S.fares).map(([k,v])=>`<div class="earn"><span>${esc(k.replace("|"," → "))}</span><span><strong class="mono">RM ${(+v).toFixed(2)}</strong> <button class="btn sm ghost" data-act="delfare" data-key="${esc(k)}">Remove</button></span></div>`).join("")}</div>
     <div class="field"><label for="prefFamily">Safe Arrival contact</label><input id="prefFamily" type="text" maxlength="60" value="${esc(S.prefs.family)}"></div>
     <p class="faint">Gets a message when you arrive, if you share a walk.</p></section>
   <section class="panel"><h2>Updates</h2>${list||`<p class="empty">No updates yet.</p>`}</section>
@@ -1455,6 +1467,15 @@ const STEP_M=0.75, KCAL_PER_STEP=0.04, CO2_PER_KM=0.17, SIM=30;
 const ADVICE={drain:"keep away from the drain edge",walkway:"no footpath here, walk facing traffic",crossing:"no zebra crossing, look both ways",
   blocked:"path blocked, go around carefully",shade:"no shade, carry water",ramp:"kerb with no ramp",light:"dark stretch, stay visible"};
 let WALK=null,walkTimer=0;
+/* e-hailing fare for a trip, used for "saved vs e-hailing". A fare the resident corrected for this exact
+   trip wins. Otherwise it's an estimate from distance: car routes run about 1.4 times the walking
+   distance, priced at RM 3.00 plus RM 1.20 per km with a RM 6.00 minimum. These are our rough
+   assumptions, not Grab's prices, so the app labels the figure as an estimate. */
+const FARE={base:3,perKm:1.2,min:6,road:1.4};
+const fareKey=(from,to)=>from+"|"+to;
+function fareFor(from,to,walkM){const own=S.fares[fareKey(from,to)];if(own!=null)return {rm:own,own:true};
+  return {rm:Math.round(Math.max(FARE.min,FARE.base+FARE.perKm*walkM/1000*FARE.road)*10)/10,own:false};}
+let FAREEDIT=false;
 function walkStats(dist,speed){const steps=Math.round(dist/STEP_M);
   return {dist:Math.round(dist),steps,kcal:Math.round(steps*KCAL_PER_STEP),mins:Math.max(1,Math.round(dist/speed/60)),
     rm:+S.prefs.ehail||0,co2:+(dist/1000*CO2_PER_KM).toFixed(2),pts:10+Math.floor(dist/100)};}
@@ -1488,7 +1509,17 @@ function walkPos(dist){
   }
   const last=WALK.segs[WALK.segs.length-1].pts;return {at:last[last.length-1],done};
 }
-function walkMapHTML(){return `<div class="lwalk" data-lmap="walk" aria-label="Live map of your walk"></div>`;}
+/* Walking view: the map is turned so the way you're heading points up, then tilted back like a
+   navigation app, with your arrow fixed near the bottom. The Leaflet map is drawn into an oversized
+   inner layer so the tilted edges never show blank space. */
+function walkMapHTML(){return `<div class="lwalk" aria-label="Live map of your walk, facing the way you are walking"><div class="lw-inner" data-lmap="walk"></div>
+  <span class="lw-you" aria-hidden="true"><svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="var(--you)" opacity=".2"/><path d="M17 5 L26 27 L17 22 L8 27 Z" fill="var(--you)" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg></span>
+  <span class="lw-attr">© OpenStreetMap</span></div>`;}
+/* compass bearing (0 = north, clockwise) of the walk at a distance, in degrees */
+function walkBearing(dist){const a=walkPos(Math.max(0,dist-4)).at,b=walkPos(Math.min(WALK.p.walkM,dist+8)).at;return Math.atan2(b[0]-a[0],-(b[1]-a[1]))*180/Math.PI;}
+/* turn the map smoothly, the short way round */
+function setBearing(deg){if(!WALK)return;const cur=WALK.bear==null?deg:WALK.bear;let d=((deg-cur)%360+540)%360-180;WALK.bear=cur+d;
+  const el=document.querySelector(".lw-inner");if(el)el.style.setProperty("--bear",(-WALK.bear)+"deg");}
 function startWalk(kind){
   const plan=planRoutes();if(plan.none)return;
   const p=kind==="fastest"?plan.fastest:plan.safest;
@@ -1515,7 +1546,7 @@ function drawWalk(){
   $("#wDist").textContent=st.dist;$("#wSteps").textContent=st.steps.toLocaleString("en-MY");$("#wKcal").textContent=st.kcal;
   $("#wBar").style.width=(WALK.dist/WALK.p.walkM*100)+"%";
   $("#wNext").innerHTML=upcomingHTML();
-  if(WMAP&&WMAP.map){const pos=walkPos(WALK.dist),ll=toLL(pos.at);WMAP.you.setLatLng(ll);WMAP.done.setLatLngs(pos.done.map(toLL));WMAP.map.panTo(ll,{animate:false});
+  if(WMAP&&WMAP.map){const pos=walkPos(WALK.dist),ll=toLL(pos.at);WMAP.you.setLatLng(ll);WMAP.done.setLatLngs(pos.done.map(toLL));WMAP.map.panTo(ll,{animate:false});setBearing(walkBearing(WALK.dist));
     WALK.marks.forEach((m,i)=>{const mk=WMAP.marks[i];if(mk)mk.setOpacity(m.at<=WALK.dist?.3:1);});}
 }
 function walkView(){
@@ -1534,8 +1565,8 @@ function walkView(){
 function finishWalk(){
   if(!WALK||WALK.done)return;
   WALK.done=true;clearInterval(walkTimer);
-  const st=walkStats(WALK.dist,WALK.speed),at=new Date();
-  const entry={date:isoDay(0),from:WALK.from,to:WALK.to,kind:WALK.kind,...st,at:clock(at),shared:WALK.share};
+  const st=walkStats(WALK.dist,WALK.speed),at=new Date(),fare=fareFor(WALK.from,WALK.to,WALK.p.walkM);st.rm=fare.rm;
+  const entry={id:"w"+Date.now(),fareOwn:fare.own,walkM:WALK.p.walkM,date:isoDay(0),from:WALK.from,to:WALK.to,kind:WALK.kind,...st,at:clock(at),shared:WALK.share};
   S.walksLog.push(entry);S.lastWalk=entry;
   addPoints(st.pts,`Walk to ${WALK.to}`);
   WALK=null;
@@ -1548,11 +1579,13 @@ function walkDoneView(){
    <div class="kpi"><div class="n mono">${w.steps.toLocaleString("en-MY")}</div><div class="l">Steps <span class="est">estimate</span></div></div>
    <div class="kpi"><div class="n mono">${w.kcal}</div><div class="l">kcal burned <span class="est">estimate</span></div></div>
    <div class="kpi"><div class="n mono">${w.mins}</div><div class="l">Minutes active</div></div>
-   <div class="kpi good"><div class="n mono">RM ${w.rm.toFixed(2)}</div><div class="l">Saved vs e-hailing</div></div>
+   <div class="kpi good fare"><div class="n mono">RM ${w.rm.toFixed(2)}</div><div class="l">Saved vs e-hailing ${w.fareOwn?"":'<span class="est">estimate</span>'}</div>
+     ${FAREEDIT?`<form id="fareForm" class="fare-form"><label for="fareAmt">What would this ride cost? (RM)</label><div class="locin"><input id="fareAmt" type="number" min="0" step="0.1" inputmode="decimal" value="${w.rm.toFixed(2)}"><button class="btn sm primary" type="submit">Save</button></div></form>`
+       :`<button class="btn sm ghost" data-act="editfare">Edit fare</button>`}</div>
    <div class="kpi good"><div class="n mono">${w.co2} kg</div><div class="l">CO2 saved vs driving</div></div>
    <div class="kpi pts"><div class="n mono">+${w.pts}</div><div class="l">WalkPoints</div></div></div>
   ${w.shared?`<section class="panel safe"><span class="chip c-ok">Safe Arrival</span><p>Message to ${esc(S.prefs.family)}:</p><blockquote>Aiman arrived safely at ${esc(w.to)}, ${esc(w.at)}</blockquote></section>`:""}
-  <p class="faint">Steps use 0.75 m per step and calories 0.04 kcal per step. Money saved uses your e-hailing fare of RM ${w.rm.toFixed(2)}, which you can change in Profile.</p>
+  <p class="faint">Steps use 0.75 m per step and calories 0.04 kcal per step. ${w.fareOwn?`Money saved uses the fare you set for this trip.`:`Money saved uses an estimated e-hailing fare for this distance. Tap Edit fare if yours is different; WalkLens remembers it for this trip.`}</p>
   <div class="list"><button class="btn primary block" data-tab="home">Back to Home</button><button class="btn block" data-tab="navigate">Plan another walk</button></div>`;
 }
 /* local calendar day as YYYY-MM-DD, offset by whole days */
@@ -1786,6 +1819,8 @@ document.addEventListener("click",e=>{
     case "sharewalk":if(WALK){WALK.share=!WALK.share;toast(WALK.share?"Sharing with "+S.prefs.family+". They'll know when you arrive.":"Stopped sharing");render();}return;
     case "alertoff":S.alertOn=false;break;
     case "alerton":S.alertOn=true;break;
+    case "editfare":FAREEDIT=true;render();{const i=$("#fareAmt");if(i){i.focus();i.select();}}return;
+    case "delfare":delete S.fares[t.dataset.key];toast("Fare removed. Estimates will be used for that trip.");break;
     case "snapretake":SNAP=null;break;
     case "snaploc":keepSnapDraft();SNAP.pos=YOU.slice();SNAP.posName="My current location";SNAP.pinning=false;render();toast("Location from GPS");return;
     case "snapstandalone":keepSnapDraft();SNAP.choice="pin";SNAP.pinning=true;REC={a:null,b:null,mode:"a",q:""};render();return;
@@ -1814,7 +1849,6 @@ document.addEventListener("change",e=>{
   if(el.id==="snapFile"&&el.files[0]){const f=el.files[0];shrinkPhoto(f).then(img=>runSnap(img,{name:f.name,size:f.size})).catch(()=>toast("That photo couldn't be read. Try another one."));return;}
   if(el.name==="role"){LOGIN.role=el.value;const u=$("#lgUser").value;render();$("#lgUser").value=u;return;}
   if(el.id==="prefFamily"){S.prefs.family=el.value.trim()||"Family";save();toast("Contact saved");return;}
-  if(el.id==="prefEhail"){const v=parseFloat(el.value);S.prefs.ehail=isFinite(v)&&v>=0?v:6;save();toast("Fare saved");return;}
   if(el.id==="navArrive"){S.nav.arrive=el.value||"13:15";save();render();return;}
   if(el.dataset.status){const h=S.hazards.find(x=>x.id===el.dataset.status);setStatus(h,el.value);save();render();toast("Status updated, residents notified");}
 });
@@ -1832,6 +1866,9 @@ document.addEventListener("input",e=>{
 });
 document.addEventListener("submit",e=>{e.preventDefault();
   if(e.target.id==="loginForm"){signIn();return;}
+  if(e.target.id==="fareForm"){const v=parseFloat($("#fareAmt").value),w=S.lastWalk;if(!isFinite(v)||v<0||!w){toast("Enter the fare in RM, like 7.50");return;}
+    const amt=Math.round(v*100)/100;S.fares[fareKey(w.from,w.to)]=amt;w.rm=amt;w.fareOwn=true;const e2=S.walksLog.find(x=>x.id===w.id);if(e2){e2.rm=amt;e2.fareOwn=true;}
+    FAREEDIT=false;save();render();toast("Saved. WalkLens will use RM "+amt.toFixed(2)+" for this trip.");return;}
   if(e.target.id==="snapForm"){sendSnap();return;}
   if(e.target.id==="cmtForm"){const h=S.hazards.find(x=>x.id===e.target.dataset.id),v=$("#cmtText").value.trim();if(!h||!v)return;
     h.comments.push({who:"Aiman Zulkifli",text:v,at:isoDay(0)});if(!S.mine.rewarded.includes("cmt"+h.id)){S.mine.rewarded.push("cmt"+h.id);addPoints(2,"Commented on a report");}save();render();toast("Comment posted");return;}if(e.target.id==="recForm")runAnalysis();if(e.target.id==="preForm")runPrebuild();});
