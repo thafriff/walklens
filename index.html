@@ -467,6 +467,15 @@ main>*{min-width:0}
 .kpi.fare .btn{align-self:flex-start}
 .fare-form{display:flex;flex-direction:column;gap:4px;font-size:.82rem}
 
+/* place search suggestions */
+.mresults{max-height:300px;overflow-y:auto;z-index:600;border-radius:14px}
+.mresults button{display:flex;flex-direction:column;gap:1px;padding:10px 14px}
+.mresults button strong{font-size:.92rem}
+.mresults button span{font-size:.78rem;color:var(--muted)}
+.mresults button:focus-visible{background:var(--brand-soft);outline:none}
+.mnote{margin:0;padding:10px 14px;font-size:.8rem;color:var(--muted)}
+.lplace.found span{background:var(--brand)}
+
 /* motion: views rise in once per navigation; nothing loops */
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes navpop{from{transform:scale(.88)}to{transform:none}}
@@ -645,6 +654,35 @@ const ico={
  video:'<svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2" fill="none" stroke="var(--brand)" stroke-width="2"/><path d="M16 10l6-3v10l-6-3z" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round"/></svg>'
 };
 
+/* ---------- place search ----------
+   Search like a maps app: WalkLens's own places first, then any place in OpenStreetMap from Photon
+   (photon.komoot.io: free, no key, built for search-as-you-type), ranked near Klang and limited to
+   Malaysia. Requests wait until typing pauses for 350 ms, and only the newest one is shown. */
+let geoTimer=0,geoSeq=0;
+function localMatches(q){q=q.toLowerCase();return Object.keys(PLACES).filter(n=>PLACES[n]&&n.toLowerCase().includes(q)).map(n=>({name:n,sub:"On WalkLens",xy:PLACES[n]}));}
+function photon(q){
+  const u=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${REAL.KJ[0]}&lon=${REAL.KJ[1]}&limit=10&lang=en`;
+  return fetch(u).then(r=>r.ok?r.json():Promise.reject()).then(j=>j.features.filter(f=>f.properties.countrycode==="MY").slice(0,6).map(f=>{const p=f.properties;
+    return {name:p.name||[p.housenumber,p.street].filter(Boolean).join(" ")||"Unnamed place",sub:[p.name?p.street:"",p.district||p.locality,p.city||p.county,p.state].filter(Boolean).join(", "),xy:toXY([f.geometry.coordinates[1],f.geometry.coordinates[0]])};}));
+}
+function geoSearch(input,kind){
+  const box=input.closest(".msearch"),q=input.value.trim();clearTimeout(geoTimer);const seq=++geoSeq;
+  const show=(items,note)=>{let r=box.querySelector(".mresults");if(!items.length&&!note){if(r)r.remove();return;}
+    if(!r){box.insertAdjacentHTML("beforeend",'<div class="mresults" role="listbox" aria-label="Places"></div>');r=box.querySelector(".mresults");}
+    r.innerHTML=items.map(it=>`<button type="button" role="option" data-geo="${kind}" data-x="${it.xy[0]}" data-y="${it.xy[1]}" data-name="${esc(it.name)}"><strong>${esc(it.name)}</strong>${it.sub?`<span>${esc(it.sub)}</span>`:""}</button>`).join("")+(note?`<p class="mnote">${note}</p>`:"");};
+  if(q.length<2){show([]);return;}
+  const local=localMatches(q);show(local,"Searching…");
+  geoTimer=setTimeout(()=>{if(!window.fetch){show(local,local.length?"":"No places found.");return;}
+    photon(q).then(list=>{if(seq!==geoSeq)return;const all=local.concat(list.filter(x=>!local.some(l=>l.name===x.name)));show(all,all.length?"":"No places found. Try a street, building or area name.");})
+      .catch(()=>{if(seq===geoSeq)show(local,"Couldn't search online right now. Check your connection.");});},350);
+}
+function pickGeo(t){
+  const xy=[+t.dataset.x,+t.dataset.y],name=t.dataset.name;document.querySelectorAll(".mresults").forEach(r=>r.remove());
+  if(t.dataset.geo==="main"){const i=$("#msearch");if(i)i.value=name;
+    if(MAIN){if(MAIN.found)MAIN.found.remove();MAIN.found=L.marker(toLL(xy),{icon:placeIcon(name,"found"),interactive:false,zIndexOffset:800}).addTo(MAIN.map);}
+    zoomTo(xy,18);return;}
+  setPoint(xy,name);
+}
 /* ---------- map ----------
    Real map: Leaflet with OpenStreetMap tiles (free, no key; tiles need internet). Leaflet itself is
    saved in vendor/leaflet. Maps are drawn into placeholders after each render by mountMaps(). */
@@ -680,12 +718,10 @@ function drawMain(){
   L.marker(toLL(YOU),{icon:youIcon(),interactive:false,zIndexOffset:-100}).addTo(g);
 }
 function mapBlock(cls){
-  const res=Object.keys(PLACES).filter((p,i,a)=>PLACES[p]&&mapSearch&&p.toLowerCase().includes(mapSearch.toLowerCase())&&a.indexOf(p)===i);
   return `<div class="mapbox ${cls}" id="mapbox">
     <div class="mapcanvas" id="mapcanvas" data-lmap="main"></div>
     <div class="m-top">
-      <div class="msearch">${ico.search}<label for="msearch" style="position:absolute;left:-9999px">Search a place</label><input id="msearch" type="search" placeholder="Search a place or address" value="${esc(mapSearch)}" autocomplete="off">
-        ${res.length?`<div class="mresults">${res.map(p=>`<button data-place="${esc(p)}">${esc(p)}</button>`).join("")}</div>`:""}</div>
+      <div class="msearch">${ico.search}<label for="msearch" style="position:absolute;left:-9999px">Search a place</label><input id="msearch" type="search" placeholder="Search a place or address" autocomplete="off" aria-autocomplete="list"></div>
       <div class="layers" role="group" aria-label="Map layers">
         <button class="layer" data-layer="hazards" aria-pressed="${S.layers.hazards}"><i style="background:var(--danger)"></i>Hazards</button>
         <button class="layer" data-layer="routes" aria-pressed="${S.layers.routes}"><i style="background:var(--warn)"></i>Routes</button>
@@ -942,7 +978,7 @@ function openZoom(src,alt){
 }
 function closeZoom(){const z=document.getElementById("zoom");if(z)z.remove();}
 function closeReportSheet(){const o=document.getElementById("repsheet");if(o)o.remove();}
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeReportSheet();closeZoom();}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){document.querySelectorAll(".mresults").forEach(r=>r.remove());closeReportSheet();closeZoom();}});
 /* short muted looping preview of the first 10 s of the real walk video, shown on the route tile */
 function mountPreviews(){
   const still=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1322,13 +1358,11 @@ function placeName(p){let best=null,bd=60;for(const [n,q] of Object.entries(PLAC
 function ptLabel(p,fallback){if(!p)return "";return fallback||placeName(p)||("Dropped pin · "+gps(p[0],p[1]));}
 function pickerSVG(){return `<div class="lpick" data-lmap="pick" aria-label="Map: tap to choose a point"></div>`;}
 function pickerHTML(){
-  const res=REC.q?Object.keys(PLACES).filter(p=>PLACES[p]&&p.toLowerCase().includes(REC.q.toLowerCase())):[];
   return `<div class="seg" role="group" aria-label="Which point to set">
      <button type="button" class="btn ${REC.mode==="a"?"primary":""}" data-pmode="a">A · Start${REC.a?" ✓":""}</button>
      <button type="button" class="btn ${REC.mode==="b"?"primary":""}" data-pmode="b">B · End${REC.b?" ✓":""}</button></div>
    <p class="faint">Tap the map to place <strong>${REC.mode==="a"?"the start (A)":"the end (B)"}</strong>, search a place, or use your current location.</p>
-   <div class="msearch">${ico.search}<label for="psearch" style="position:absolute;left:-9999px">Search a place</label><input id="psearch" type="search" placeholder="Search a place or address" value="${esc(REC.q)}" autocomplete="off">
-     ${res.length?`<div class="mresults" style="z-index:3">${res.map(p=>`<button type="button" data-pplace="${esc(p)}">${esc(p)}</button>`).join("")}</div>`:""}</div>
+   <div class="msearch">${ico.search}<label for="psearch" style="position:absolute;left:-9999px">Search a place</label><input id="psearch" type="search" placeholder="Search a place or address" autocomplete="off" aria-autocomplete="list"></div>
    <div class="mapbox" style="position:relative">${pickerSVG()}
      <div class="m-ctl"><button type="button" class="loc" data-act="pickloc" aria-label="Use my current location">${ico.locate}</button></div></div>
    <div class="list" style="gap:4px">
@@ -1773,14 +1807,15 @@ function openWatch(hid){const h=S.hazards.find(x=>x.id===hid);if(!h)return;
   S.openRoute=h.route;S.tab=isAdmin()?"dash":"walks";P.route=h.route;P.pending=seekT(h);P.playing=false;save();render();
   const pl=$("#player");if(pl)pl.scrollIntoView({block:"start"});}
 document.addEventListener("click",e=>{
+  if(!e.target.closest(".msearch"))document.querySelectorAll(".mresults").forEach(r=>r.remove());
   if(e.target.closest("#zoom")){closeZoom();return;}
   const zi=e.target.closest(ZOOM_SEL);if(zi){openZoom(zi.currentSrc||zi.src,zi.alt);return;}
   const mapHit=e.target.closest("#mapsvg");
   if(mapHit&&dragMoved){dragMoved=false;return;}
-  const t=e.target.closest("[data-tab],[data-open],[data-sample],[data-mode],[data-pinfield],[data-arrive],[data-startwalk],[data-feed],[data-snapwalk],[data-redeem],[data-buddy],[data-snapsample],[data-react],[data-cmt],[data-follow],[data-act],[data-seek],[data-watch],[data-pin],[data-cluster],[data-rsel],[data-layer],[data-place],[data-pmode],[data-pplace],#pp");if(!t)return;
+  const t=e.target.closest("[data-tab],[data-open],[data-sample],[data-mode],[data-pinfield],[data-arrive],[data-startwalk],[data-feed],[data-snapwalk],[data-redeem],[data-buddy],[data-snapsample],[data-react],[data-cmt],[data-follow],[data-act],[data-seek],[data-watch],[data-pin],[data-cluster],[data-rsel],[data-layer],[data-place],[data-pmode],[data-geo],#pp");if(!t)return;
   if(t.id==="pp"){setPlaying(!P.playing);return;}
   if(t.dataset.pmode){REC.mode=t.dataset.pmode;refreshPicker();return;}
-  if(t.dataset.pplace){setPoint(PLACES[t.dataset.pplace].slice(),t.dataset.pplace);return;}
+  if(t.dataset.geo){pickGeo(t);return;}
   if(t.dataset.seek!=null){const pl=$("#player");if(pl){seek(+t.dataset.seek);if(t.closest(".hz,svg"))pl.scrollIntoView({behavior:"smooth",block:"center"});}return;}
   if(t.dataset.watch){openWatch(t.dataset.watch);return;}
   if(t.dataset.pin){S.sel={kind:"h",id:t.dataset.pin};refreshMap();return;}
@@ -1856,12 +1891,10 @@ document.addEventListener("input",e=>{
   const el=e.target;
   if(el.id==="pseek"){seek(+el.value);}
   if(el.id==="rname"){const er=$("#recErr");if(er)er.hidden=true;}
-  if(el.id==="psearch"){REC.q=el.value;refreshPicker();}
+  if(el.id==="psearch"){geoSearch(el,"pick");}
   if(el.id==="snapWalkQ"&&SNAP){SNAP.q=el.value;const l=$("#snapWalks");if(l)l.innerHTML=snapWalkList();}
   if(el.id==="note")$("#ncount").textContent=el.value.length+"/500";
-  if(el.id==="msearch"){mapSearch=el.value;const box=$(".msearch");const old=box.querySelector(".mresults");if(old)old.remove();
-    const res=Object.keys(PLACES).filter(p=>mapSearch&&p.toLowerCase().includes(mapSearch.toLowerCase()));
-    if(res.length)box.insertAdjacentHTML("beforeend",`<div class="mresults">${res.map(p=>`<button data-place="${esc(p)}">${esc(p)}</button>`).join("")}</div>`);}
+  if(el.id==="msearch"){geoSearch(el,"main");}
   if(el.closest&&el.closest("#preForm")){const er=$("#preErr");if(er)er.hidden=true;}
 });
 document.addEventListener("submit",e=>{e.preventDefault();
