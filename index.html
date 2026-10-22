@@ -236,7 +236,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand);b
 .bnav button:active{transform:scale(.92)}
 .bnav button[aria-current="page"]{background:var(--brand);color:var(--brand-ink);animation:navpop .35s var(--ease)}
 .bnav .dot{top:9px;left:auto;right:11px;border:2px solid var(--surface)}
-.toast{bottom:calc(96px + env(safe-area-inset-bottom,0px));border-radius:14px}
+.toast{width:max-content;top:calc(9px + env(safe-area-inset-top,0px));min-height:40px;display:flex;align-items:center;justify-content:center;bottom:auto;border-radius:14px;z-index:2500;text-align:center;box-shadow:0 10px 24px -10px rgba(0,0,0,.4)}
 main.res{padding-bottom:120px}
 
 /* photography: stills from the real walk video */
@@ -485,11 +485,22 @@ main>*{min-width:0}
 .bnav .dot{top:4px;right:12px}
 @media (max-width:360px){.bnav button{width:50px}.bnav-in{padding:6px 4px}}
 
+/* hazard warning during a walk */
+.walert{display:flex;gap:12px;align-items:center;border-radius:var(--r);padding:12px 14px;background:var(--warn-soft);color:var(--fg);animation:rise .3s var(--ease)}
+.walert.danger{background:var(--danger-soft)}
+.wa-ico{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:900;color:#fff;background:var(--warn)}
+.walert.danger .wa-ico{background:var(--danger)}
+
+/* admin layout at desktop width */
+.wrap.adm{max-width:1240px}
+td.acts{display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:118px}
+td.rcol{min-width:130px}
+
 /* motion: views rise in once per navigation; nothing loops */
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes navpop{from{transform:scale(.88)}to{transform:none}}
 @keyframes grow{from{transform:scaleX(0)}to{transform:none}}
-@keyframes toastin{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes toastin{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
 main.enter>*,.login-card>*{animation:rise .45s var(--ease) both}
 main.enter>:nth-child(2),.login-card>:nth-child(2){animation-delay:.05s}
 main.enter>:nth-child(3),.login-card>:nth-child(3){animation-delay:.1s}
@@ -1185,7 +1196,7 @@ function reportsView(){
     <button class="btn primary" data-tab="snap">${ico.video.replace(/var\(--brand\)/g,"currentColor").replace('width="34" height="34"','width="18" height="18"')} Snap a problem</button></div>
   <div class="modes" role="group" aria-label="Filter reports">${FEED_FILTERS.map(([k,l])=>`<button class="mchip" data-feed="${k}" aria-pressed="${(S.feedFilter||"all")===k}">${l}</button>`).join("")}</div>
   <div class="msearch rsearch">${ico.search}<label for="rsearch" style="position:absolute;left:-9999px">Search reports</label><input id="rsearch" type="search" placeholder="Search a place, route or agency" autocomplete="off"></div>
-  <div><h2 style="margin-bottom:8px">Walk videos</h2>${walkVideos()}</div>
+  ${(S.feedFilter||"all")==="all"?`<div><h2 style="margin-bottom:8px">Walk videos</h2>${walkVideos()}</div>`:""}
   <div class="list" id="rlist">${reportList("")}</div>`;
 }
 function react(kind,id){
@@ -1474,9 +1485,9 @@ function fixView(){
    <p class="faint">Illustration of the fix.</p></section>`:""}
   <section class="panel tblwrap"><table><thead><tr><th>#</th><th>Problem → fix</th><th>Route</th><th>Walkers/day</th><th>Affects me too</th><th>Avoid route</th><th>Est. cost</th><th>Status</th><th></th></tr></thead><tbody>
   ${list.map((h,i)=>`<tr><td class="n"><strong>${i+1}</strong></td><td style="min-width:240px">${hImg(h)?`<img class="tbl-img" src="${hImg(h)}" alt="" loading="lazy">`:""}${sevChip(h.sev)} <strong>${esc(h.title)}</strong><div class="faint">→ ${esc(h.fix)}</div></td>
-   <td>${esc(route(h.route)?route(h.route).name:whereText(h))}</td><td class="n">${h.walkers}</td><td class="n">${h.affects}</td><td class="n">${h.avoid}</td><td class="n">${rm(h.cost)}</td>
+   <td class="rcol">${esc(route(h.route)?route(h.route).name:whereText(h))}</td><td class="n">${h.walkers}</td><td class="n">${h.affects}</td><td class="n">${h.avoid}</td><td class="n">${rm(h.cost)}</td>
    <td><label for="st-${h.id}" style="position:absolute;left:-9999px">Status</label><select id="st-${h.id}" data-status="${h.id}" style="min-width:150px">${STATUSES.slice(1,5).map(s=>`<option ${s===h.status?"selected":""}>${s}</option>`).join("")}</select></td>
-   <td style="white-space:nowrap">${h.snap?"":`<button class="btn sm" data-watch="${h.id}">${ico.play} Video</button> `}<button class="btn sm" data-act="after" data-id="${h.id}">Preview fix</button></td></tr>`).join("")}
+   <td class="acts">${h.snap?"":`<button class="btn sm" data-watch="${h.id}">${ico.play} Video</button>`}<button class="btn sm" data-act="after" data-id="${h.id}">Preview fix</button></td></tr>`).join("")}
   </tbody></table></section>
   <p class="faint">Total for open items: <strong class="mono">${rm(list.filter(h=>h.status!=="Fixed").reduce((a,h)=>a+h.cost,0))}</strong>. Costs are rough estimates to confirm with the council.</p>`;
 }
@@ -1560,7 +1571,9 @@ function startWalk(kind){
 }
 function tickWalk(){
   if(!WALK||WALK.done){clearInterval(walkTimer);return;}
-  const now=Date.now();WALK.dist=Math.min(WALK.p.walkM,WALK.dist+(now-WALK.last)/1000*SIM*WALK.speed);WALK.last=now;
+  /* the replay slows to 6 times real speed from 60 m before a hazard to 15 m after it, so the warning can be read */
+  const now=Date.now(),near=WALK.marks.some(m=>m.at-WALK.dist<=60&&m.at-WALK.dist>-15);
+  WALK.dist=Math.min(WALK.p.walkM,WALK.dist+(now-WALK.last)/1000*(near?6:SIM)*WALK.speed);WALK.last=now;
   if(WALK.dist>=WALK.p.walkM){finishWalk();return;}
   drawWalk();
 }
@@ -1575,6 +1588,11 @@ function drawWalk(){
   $("#wDist").textContent=st.dist;$("#wSteps").textContent=st.steps.toLocaleString("en-MY");$("#wKcal").textContent=st.kcal;
   $("#wBar").style.width=(WALK.dist/WALK.p.walkM*100)+"%";
   $("#wNext").innerHTML=upcomingHTML();
+  /* hazard within 45 m: show it big, above the stats */
+  const nx=WALK.marks.find(m=>m.at-WALK.dist>-15),al=$("#wAlert");
+  if(al){if(nx&&nx.at-WALK.dist<=60){const m=Math.max(0,Math.round(nx.at-WALK.dist));al.hidden=false;al.className="walert "+nx.h.sev;
+      al.innerHTML=`<span class="wa-ico" aria-hidden="true">!</span><div><strong>${m?`${esc(nx.h.short)} in ${m} m`:`${esc(nx.h.short)} here`}</strong><br>${esc((ADVICE[nx.h.type]||"take care").replace(/^./,c=>c.toUpperCase()))}</div>`;}
+    else al.hidden=true;}
   if(WMAP&&WMAP.map){const pos=walkPos(WALK.dist),ll=toLL(pos.at);WMAP.you.setLatLng(ll);WMAP.done.setLatLngs(pos.done.map(toLL));WMAP.map.panTo(ll,{animate:false});setBearing(walkBearing(WALK.dist));
     WALK.marks.forEach((m,i)=>{const mk=WMAP.marks[i];if(mk)mk.setOpacity(m.at<=WALK.dist?.3:1);});}
 }
@@ -1584,6 +1602,7 @@ function walkView(){
   <section class="walkhead"><span class="chip ${WALK.kind==="fastest"?"c-brand":"c-ok"}">${WALK.kind==="fastest"?"Fastest":"Safest"} route</span><h1>Walking to ${esc(WALK.to)}</h1>
    <div class="bar"><i id="wBar"></i></div></section>
   <section class="wmapbox">${walkMapHTML()}<span class="m-badge">Live position</span></section>
+  <div id="wAlert" class="walert" role="alert" hidden></div>
   <div class="wstats"><div class="kpi"><div class="n mono" id="wTime">0:00</div><div class="l">Time</div></div><div class="kpi"><div class="n mono"><span id="wDist">0</span> m</div><div class="l">of ${WALK.p.walkM} m</div></div>
    <div class="kpi"><div class="n mono" id="wSteps">0</div><div class="l">Steps (estimate)</div></div><div class="kpi"><div class="n mono" id="wKcal">0</div><div class="l">kcal (estimate)</div></div></div>
   <section class="panel"><h2>Coming up</h2><div id="wNext" class="list" style="gap:8px">${upcomingHTML()}</div></section>
