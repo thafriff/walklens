@@ -743,6 +743,8 @@ let lastKey="";
 function render(){
   cancelAnimationFrame(P.raf);
   closeReportSheet();
+  /* every hazard needs its community fields, including after "Reset demo data" swaps in fresh seed data */
+  S.hazards.forEach(fillHazard);
   const app=$("#app");
   if(!S.user){lastKey="";app.innerHTML=loginView();return;}
   if(isAdmin()){
