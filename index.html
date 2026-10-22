@@ -344,6 +344,20 @@ main>*{min-width:0}
 .cmts{display:flex;flex-direction:column;gap:8px;background:var(--sunk);border-radius:14px;padding:10px 12px;font-size:.88rem}
 .cmt-form{display:flex;gap:6px} .cmt-form input{flex:1;min-width:0}
 
+/* snap */
+.hero .btn.ghost-light{background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.55);box-shadow:none}
+.hero{flex-wrap:wrap} .hero>.btn{align-self:flex-start}
+.snap-drop{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.snap-samples{display:flex;gap:8px}
+.snap-sample{border:2px solid transparent;border-radius:14px;padding:0;overflow:hidden;width:76px;height:100px;background:var(--sunk)}
+.snap-sample:hover,.snap-sample:focus-visible{border-color:var(--brand)}
+.snap-sample img{width:100%;height:100%;object-fit:cover}
+.snap-res{display:flex;flex-direction:column;gap:10px}
+.snap-img{width:100%;max-height:300px;object-fit:cover;border-radius:14px}
+.snapdl{margin:0;display:grid;gap:8px} .snapdl dt{font-size:.72rem;color:var(--faint);text-transform:uppercase;letter-spacing:.05em} .snapdl dd{margin:0;font-weight:700}
+@keyframes indet{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+.bar>i.indet{width:40%;animation:indet 1.1s ease-in-out infinite}
+
 /* motion: views rise in once per navigation; nothing loops */
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes navpop{from{transform:scale(.88)}to{transform:none}}
@@ -663,7 +677,7 @@ function streetSVG(type,after){
 /* ---------- shell ---------- */
 const RES_TABS=[["home","Home",ico.home],["navigate","Navigate",ico.compass],["reports","Community",ico.people],["map","Map",ico.map],["profile","Profile",ico.user]];
 /* screens without their own nav button light up the button they belong to */
-const NAV_PARENT={walk:"navigate",walkdone:"navigate",walks:"profile",record:"profile",sample:"reports"};
+const NAV_PARENT={snap:"reports",walk:"navigate",walkdone:"navigate",walks:"profile",record:"profile",sample:"reports"};
 let lastKey="";
 function render(){
   cancelAnimationFrame(P.raf);
@@ -677,7 +691,7 @@ function render(){
       <nav class="tabs" aria-label="Sections">${tabs.map(t=>`<button class="tab" data-tab="${t[0]}" ${S.tab===t[0]?'aria-current="page"':""}>${t[1]}${t[2]?`<span class="count">${t[2]}</span>`:""}</button>`).join("")}</nav></div></header>
       <main class="wrap adm" id="main">${adminView()}</main>`;
   }else{
-    if(!S.tab||!["home","navigate","walk","walkdone","walks","map","profile","record","reports","sample"].includes(S.tab))S.tab="home";
+    if(!S.tab||!["home","navigate","snap","walk","walkdone","walks","map","profile","record","reports","sample"].includes(S.tab))S.tab="home";
     const unread=S.notifs.filter(n=>!n.read).length;
     const navTab=NAV_PARENT[S.tab]||S.tab;
     app.innerHTML=`<header class="top"><div class="wrap res"><div class="top-row"><div class="logo"><span class="logo-mark" style="color:var(--brand-ink)">${ico.walk}</span>WalkLens</div><div class="who"><span class="role-pill">Resident</span></div></div></div></header>
@@ -706,6 +720,7 @@ function residentView(){
   if(S.tab==="record")return recordView();
   if(S.tab==="navigate")return navigateView();
   if(S.tab==="walk")return walkView();
+  if(S.tab==="snap")return snapView();
   if(S.tab==="walkdone")return walkDoneView();
   if(S.tab==="reports")return reportsView();
   if(S.tab==="sample")return sampleView();
@@ -748,7 +763,7 @@ function homeView(){
   ${(()=>{const w=weekStats();return `<section class="panel week"><div class="head"><h2>This week</h2>${w.streak?`<span class="chip c-brand">${w.streak}-day walking streak</span>`:""}</div>
     <div class="mini3"><div><div class="n mono">${w.steps.toLocaleString("en-MY")}</div><div class="l">Steps <span class="est">estimate</span></div></div><div><div class="n mono">RM ${w.rm.toFixed(0)}</div><div class="l">Saved vs e-hailing</div></div><div><div class="n mono">${w.co2.toFixed(1)} kg</div><div class="l">CO2 saved</div></div></div>
     <button class="btn primary block" data-tab="navigate">${ico.compass} Plan a walk</button></section>`;})()}
-  <section class="hero photo" style="--img:url(media/frames/t100.jpg)"><h2 style="color:inherit">See a dangerous walk?</h2><p>Record it on your phone. The AI finds the problems and pins them on the map for the township team.</p><button class="btn" data-tab="record">${ico.video.replace(/var\(--brand\)/g,"currentColor").replace('width="34" height="34"','width="18" height="18"')} Record a walk</button></section>
+  <section class="hero photo" style="--img:url(media/frames/t100.jpg)"><h2 style="color:inherit">See a dangerous walk?</h2><p>Record it on your phone. The AI finds the problems and pins them on the map for the township team.</p><button class="btn" data-tab="record">${ico.video.replace(/var\(--brand\)/g,"currentColor").replace('width="34" height="34"','width="18" height="18"')} Record a walk</button><button class="btn ghost-light" data-tab="snap">Snap a problem</button></section>
   <div class="mini3"><button class="kpi kbtn" data-tab="walks"><div class="n">${mine.length}</div><div class="l">My walks</div></button><div class="kpi"><div class="n">${myHz.length}</div><div class="l">Hazards found</div></div><div class="kpi"><div class="n">${myHz.filter(h=>h.status==="Fixed").length}</div><div class="l">Fixed</div></div></div>
   <div><div class="head" style="margin-bottom:10px"><h2>Community reports</h2><button class="btn sm ghost" data-tab="reports">See all</button></div>
     <div class="hscroll">${POSTS.map(p=>postCard(p,false)).join("")}</div></div>
@@ -793,6 +808,7 @@ function fillHazard(h){
 function setStatus(h,st){
   h.status=st;const i=stepOf(st),today=isoDay(0);
   if(st!=="Rejected")for(let k=0;k<=i;k++)if(!h.hist[TIMELINE[k][0]])h.hist[TIMELINE[k][0]]=today;
+  if(st==="Approved"&&h.snap&&!h.paid){h.paid=true;addPoints(20,"Report confirmed by the township team");}
   const followed=S.follow.includes(h.id);
   notify(`${followed?"A report you follow":"Update"}: "${h.title}" is now ${st==="Sent to council"?"sent to "+h.agency:st.toLowerCase()}.`);
 }
@@ -996,7 +1012,7 @@ function auditView(id){
     ${hImg(h)?`<img class="hz-img" src="${hImg(h)}" alt="Video still: ${esc(h.short)}" loading="lazy">`:""}
     <div class="hz-top"><span class="mono faint">${mmss(h.t)}</span>${sevChip(h.sev)}${statusChip(h.status)}${h.conf?`<span class="faint">AI ${h.conf}% sure</span>`:""}</div>
     <strong>${esc(h.title)}</strong><div class="faint">Suggested fix: ${esc(h.fix)} · ${h.confirms} resident${h.confirms===1?"":"s"} confirmed</div>
-    <div class="hz-actions"><button class="btn sm" data-seek="${Math.max(0,h.t-1)}">${ico.play} Watch</button>
+    <div class="hz-actions">${h.snap?"":`<button class="btn sm" data-seek="${Math.max(0,h.t-1)}">${ico.play} Watch</button>`}
     ${adm?(h.status==="Pending review"?`<button class="btn sm primary" data-act="approve" data-id="${h.id}">Approve</button><button class="btn sm" data-act="reject" data-id="${h.id}">Reject</button>`:""):`<button class="btn sm" data-act="confirm" data-id="${h.id}">Confirm, I've seen this</button><button class="btn sm ghost" data-act="dispute" data-id="${h.id}">Not a hazard</button>`}</div>
   </div></div>`).join(""):`<p class="empty">No hazards found on this route.</p>`}</section>`;
 }
@@ -1098,7 +1114,7 @@ function reviewView(){
   <section class="panel">${q.length?q.map(h=>{const r=route(h.route);
     return `<div class="hz" style="grid-template-columns:1fr"><div>${hImg(h)?`<img class="hz-img" src="${hImg(h)}" alt="Video still: ${esc(h.short)}" loading="lazy">`:""}<div class="hz-top">${sevChip(h.sev)}<span class="faint">${esc(r.name)} · <span class="mono">${mmss(h.t)}</span>${h.conf?` · AI ${h.conf}% sure`:""}</span></div>
     <strong>${esc(h.title)}</strong><div class="faint">AI suggests: ${esc(h.fix)} · est. ${rm(h.cost)} · ${h.confirms} resident confirmation${h.confirms===1?"":"s"}</div>
-    <div class="hz-actions"><button class="btn sm" data-watch="${h.id}">${ico.play} Watch clip</button><button class="btn sm primary" data-act="approve" data-id="${h.id}">Approve</button><button class="btn sm" data-act="reject" data-id="${h.id}">Reject</button></div></div></div>`;}).join(""):`<p class="empty">All caught up. New AI findings appear here when residents upload walks.</p>`}</section>`;
+    <div class="hz-actions">${h.snap?"":`<button class="btn sm" data-watch="${h.id}">${ico.play} Watch clip</button>`}<button class="btn sm primary" data-act="approve" data-id="${h.id}">Approve</button><button class="btn sm" data-act="reject" data-id="${h.id}">Reject</button></div></div></div>`;}).join(""):`<p class="empty">All caught up. New AI findings appear here when residents upload walks.</p>`}</section>`;
 }
 function fixView(){
   const list=S.hazards.filter(h=>!["Pending review","Rejected"].includes(h.status)).sort((a,b)=>(a.status==="Fixed")-(b.status==="Fixed")||priority(b)-priority(a));
@@ -1111,7 +1127,7 @@ function fixView(){
   ${list.map((h,i)=>`<tr><td class="n"><strong>${i+1}</strong></td><td style="min-width:240px">${hImg(h)?`<img class="tbl-img" src="${hImg(h)}" alt="" loading="lazy">`:""}${sevChip(h.sev)} <strong>${esc(h.title)}</strong><div class="faint">→ ${esc(h.fix)}</div></td>
    <td>${esc(route(h.route).name)}</td><td class="n">${h.walkers}</td><td class="n">${rm(h.cost)}</td>
    <td><label for="st-${h.id}" style="position:absolute;left:-9999px">Status</label><select id="st-${h.id}" data-status="${h.id}" style="min-width:150px">${STATUSES.slice(1,5).map(s=>`<option ${s===h.status?"selected":""}>${s}</option>`).join("")}</select></td>
-   <td style="white-space:nowrap"><button class="btn sm" data-watch="${h.id}">${ico.play} Video</button> <button class="btn sm" data-act="after" data-id="${h.id}">Preview fix</button></td></tr>`).join("")}
+   <td style="white-space:nowrap">${h.snap?"":`<button class="btn sm" data-watch="${h.id}">${ico.play} Video</button> `}<button class="btn sm" data-act="after" data-id="${h.id}">Preview fix</button></td></tr>`).join("")}
   </tbody></table></section>
   <p class="faint">Total for open items: <strong class="mono">${rm(list.filter(h=>h.status!=="Fixed").reduce((a,h)=>a+h.cost,0))}</strong>. Costs are rough estimates to confirm with the council.</p>`;
 }
@@ -1236,6 +1252,69 @@ function weekStats(){
 }
 function addPoints(n,why){S.points=(S.points||0)+n;S.pointsLog.unshift({pts:n,text:why,at:isoDay(0)});}
 
+/* ---------- AI Snap & Route ---------- */
+const SNAP_CLASSES=[
+  {type:"drain",label:"Open drain",sev:"danger",fix:"Cover the drain with a grating and pave a 1.5 m footpath",cost:45000},
+  {type:"crossing",label:"Road crossing with no zebra crossing",sev:"danger",fix:"Zebra crossing with kerb ramps",cost:25000},
+  {type:"walkway",label:"Footpath ends, walkers pushed onto the road",sev:"danger",fix:"Continue the footpath with a raised kerb",cost:100000},
+  {type:"blocked",label:"Path blocked",sev:"warn",fix:"Clear the obstruction and add bollards",cost:5000},
+  {type:"ramp",label:"Kerb with no ramp",sev:"warn",fix:"Add a kerb ramp",cost:8000},
+  {type:"light",label:"Broken or missing street light",sev:"warn",fix:"Replace the street light",cost:5000}
+];
+/* sample photos are real stills from the Klang Jaya walk video */
+const SNAP_SAMPLES=[{img:"media/frames/t5.jpg",type:"drain"},{img:"media/frames/t33.jpg",type:"crossing"},{img:"media/frames/t114.jpg",type:"blocked"}];
+let SNAP=null;
+/* classifyPhoto: the one place the photo is "understood".
+   Demo version: picks a hazard class from the sample it was given, or from a hash of the file name and
+   size, so the same photo always gets the same answer. Nothing leaves the browser.
+   Real version: send the image to the Gemini vision API (generateContent with the image as inline data)
+   from a small server that holds the API key, with a prompt like "Identify the main pedestrian hazard in
+   this photo. Reply as JSON: {type, label, severity, suggested_fix, confidence}", using a response schema,
+   then map the type to the agency with agencyFor(). The key must never be in this page. */
+function classifyPhoto(input){
+  return new Promise(res=>setTimeout(()=>{
+    const c=SNAP_CLASSES.find(x=>x.type===input.hint)||SNAP_CLASSES[hash(input.name+input.size)%SNAP_CLASSES.length];
+    res({...c,agency:agencyFor(c.type),conf:80+hash(input.name)%15});
+  },1200));
+}
+/* shrink a photo so the demo can keep it in browser storage */
+function shrinkPhoto(file){
+  return new Promise((res,rej)=>{const fr=new FileReader();fr.onerror=rej;fr.onload=()=>{const im=new Image();im.onerror=rej;im.onload=()=>{
+    const k=Math.min(1,480/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+    c.getContext("2d").drawImage(im,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",.72));};im.src=fr.result;};fr.readAsDataURL(file);});
+}
+function runSnap(img,meta){
+  SNAP={img,stage:"checking"};render();
+  classifyPhoto(meta).then(r=>{if(!SNAP)return;SNAP.stage="result";SNAP.result=r;render();});
+}
+function snapView(){
+  const back=`<div><button class="btn sm ghost" data-tab="reports">← Community</button></div>`;
+  if(!SNAP)return `${back}<div><h1>Snap a problem</h1><p class="muted">Take a photo of something unsafe on your walk. The AI says what it is, who is likely responsible and drafts the report for you.</p></div>
+    <section class="panel snap-drop"><label class="btn primary" for="snapFile">${ico.video.replace(/var\(--brand\)/g,"currentColor").replace('width="34" height="34"','width="18" height="18"')} Take or choose a photo<input id="snapFile" type="file" accept="image/*" capture="environment" hidden></label>
+      <p class="faint">No photo handy? Try a sample from the Klang Jaya walk.</p>
+      <div class="snap-samples">${SNAP_SAMPLES.map((x,i)=>`<button class="snap-sample" data-snapsample="${i}" aria-label="Use sample photo ${i+1}"><img src="${x.img}" alt=""></button>`).join("")}</div></section>
+    <p class="faint">Don't photograph people's faces up close.</p>`;
+  if(SNAP.stage==="checking")return `${back}<section class="panel snap-res"><img class="snap-img" src="${SNAP.img}" alt="Your photo"><p><strong>Checking the photo…</strong></p><div class="bar"><i class="indet"></i></div></section>`;
+  const r=SNAP.result;
+  return `${back}<section class="panel snap-res"><img class="snap-img" src="${SNAP.img}" alt="Your photo">
+    <div class="hz-top"><span class="chip c-accent">AI result · simulated</span>${sevChip(r.sev)}<span class="faint">${r.conf}% sure</span></div>
+    <h2>${esc(r.label)}, ${r.sev==="danger"?"high danger":"needs work"}</h2>
+    <dl class="snapdl"><div><dt>Likely responsible</dt><dd>${esc(r.agency)} <span class="est">estimate</span></dd></div><div><dt>Suggested fix</dt><dd>${esc(r.fix)}</dd></div></dl></section>
+  <form id="snapForm" class="fcard" novalidate><h3>Your report</h3><p class="faint">Check it, then send. You can edit anything.</p>
+    <div class="field"><label for="snapTitle">What's wrong</label><input id="snapTitle" type="text" maxlength="120" value="${esc(r.label)}"></div>
+    <div class="field"><label for="snapRoute">Which walk is it on?</label><select id="snapRoute">${S.routes.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select></div>
+    <div class="field"><label for="snapNote">Anything else <span class="faint">(optional)</span></label><textarea id="snapNote" maxlength="300" placeholder="Like when it's worst, or how long it's been there"></textarea></div>
+    <button class="btn primary block" type="submit">Confirm and send</button><button class="btn block ghost" type="button" data-act="snapretake">Retake photo</button></form>`;
+}
+function sendSnap(){
+  const r=SNAP.result,rid=$("#snapRoute").value,rt=route(rid),title=($("#snapTitle").value||r.label).trim();
+  const h={id:"s"+Date.now(),route:rid,t:Math.round(rt.dur/2),type:r.type,short:r.label.split(",")[0],title,sev:r.sev,fix:r.fix,cost:r.cost,walkers:200,confirms:0,conf:r.conf,
+    status:"Pending review",reported:isoDay(0),snap:true,photo:SNAP.img,note:$("#snapNote").value.trim(),agency:r.agency};
+  fillHazard(h);S.hazards.push(h);S.follow.push(h.id);addPoints(5,"Sent a photo report");
+  notify(`Your report "${title}" was sent. The township team will check it, and you'll hear when it moves.`);
+  SNAP=null;S.tab="reports";S.feedFilter="following";save();render();window.scrollTo(0,0);toast("Report sent. +5 WalkPoints");
+}
+
 /* ---------- simulated AI pipeline ---------- */
 function makePts(a,b,R){
   const pts=[a];for(let i=1;i<5;i++){const f=i/5;pts.push([a[0]+(b[0]-a[0])*f+(R()-.5)*50,a[1]+(b[1]-a[1])*f+(R()-.5)*50]);}pts.push(b);
@@ -1290,7 +1369,7 @@ document.addEventListener("click",e=>{
   if(mapHit&&dragMoved){dragMoved=false;return;}
   const psvg=e.target.closest("#pickersvg");
   if(psvg){const pt=psvg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const m=pt.matrixTransform(psvg.getScreenCTM().inverse());const p=[Math.round(m.x),Math.round(m.y)];const n=placeName(p);setPoint(n?PLACES[n].slice():p,n);return;}
-  const t=e.target.closest("[data-tab],[data-open],[data-sample],[data-mode],[data-arrive],[data-startwalk],[data-feed],[data-react],[data-cmt],[data-follow],[data-act],[data-seek],[data-watch],[data-pin],[data-cluster],[data-rsel],[data-layer],[data-place],[data-pmode],[data-pplace],#pp");if(!t)return;
+  const t=e.target.closest("[data-tab],[data-open],[data-sample],[data-mode],[data-arrive],[data-startwalk],[data-feed],[data-snapsample],[data-react],[data-cmt],[data-follow],[data-act],[data-seek],[data-watch],[data-pin],[data-cluster],[data-rsel],[data-layer],[data-place],[data-pmode],[data-pplace],#pp");if(!t)return;
   if(t.id==="pp"){setPlaying(!P.playing);return;}
   if(t.dataset.pmode){REC.mode=t.dataset.pmode;refreshPicker();return;}
   if(t.dataset.pplace){setPoint(PLACES[t.dataset.pplace].slice(),t.dataset.pplace);return;}
@@ -1301,6 +1380,7 @@ document.addEventListener("click",e=>{
   if(t.dataset.rsel){S.sel={kind:"r",id:t.dataset.rsel};refreshMap();return;}
   if(t.dataset.layer){S.layers[t.dataset.layer]=!S.layers[t.dataset.layer];t.setAttribute("aria-pressed",S.layers[t.dataset.layer]);save();refreshMap();return;}
   if(t.dataset.place){const p=PLACES[t.dataset.place];mapSearch="";const r=$(".mresults");if(r)r.remove();$("#msearch").value="";zoomTo(p[0],p[1],420);toast(t.dataset.place);return;}
+  if(t.dataset.snapsample){const x=SNAP_SAMPLES[+t.dataset.snapsample];runSnap(x.img,{hint:x.type,name:x.img,size:0});return;}
   if(t.dataset.feed){S.feedFilter=t.dataset.feed;save();render();return;}
   if(t.dataset.react){react(t.dataset.react,t.dataset.id);save();render();return;}
   if(t.dataset.cmt){S.openCmt=S.openCmt===t.dataset.cmt?null:t.dataset.cmt;save();render();const i=$("#cmtText");if(i)i.focus();return;}
@@ -1323,6 +1403,7 @@ document.addEventListener("click",e=>{
     case "reject":setStatus(h,"Rejected");toast("Rejected");break;
     case "after":S.afterFor=id;save();render();{const p=$("#afterPanel");if(p)p.scrollIntoView({behavior:"smooth",block:"start"});}return;
     case "closeAfter":S.afterFor=null;break;
+    case "snapretake":SNAP=null;break;
     case "finishwalk":if(WALK)WALK.dist=WALK.p.walkM;finishWalk();return;
     case "navswap":[S.nav.from,S.nav.to]=[S.nav.to,S.nav.from];break;
     case "navmap":S.nav.map=!S.nav.map;REC={a:null,b:null,mode:"a",q:""};break;
@@ -1344,6 +1425,7 @@ document.addEventListener("change",e=>{
   if(el.name==="gsrc"){toast(el.value==="gps"?"Start and end will come from the video's GPS":"Tap the map to pin the start and end");return;}
   if(el.id==="pseek"){seek(+el.value);return;}
   if(el.id==="navFrom"||el.id==="navTo"){S.nav[el.id==="navFrom"?"from":"to"]=el.value.trim();save();render();return;}
+  if(el.id==="snapFile"&&el.files[0]){const f=el.files[0];shrinkPhoto(f).then(img=>runSnap(img,{name:f.name,size:f.size})).catch(()=>toast("That photo couldn't be read. Try another one."));return;}
   if(el.id==="prefEhail"){const v=parseFloat(el.value);S.prefs.ehail=isFinite(v)&&v>=0?v:6;save();toast("Fare saved");return;}
   if(el.id==="navArrive"){S.nav.arrive=el.value||"13:15";save();render();return;}
   if(el.dataset.status){const h=S.hazards.find(x=>x.id===el.dataset.status);setStatus(h,el.value);save();render();toast("Status updated, residents notified");}
@@ -1360,6 +1442,7 @@ document.addEventListener("input",e=>{
   if(el.closest&&el.closest("#preForm")){const er=$("#preErr");if(er)er.hidden=true;}
 });
 document.addEventListener("submit",e=>{e.preventDefault();
+  if(e.target.id==="snapForm"){sendSnap();return;}
   if(e.target.id==="cmtForm"){const h=S.hazards.find(x=>x.id===e.target.dataset.id),v=$("#cmtText").value.trim();if(!h||!v)return;
     h.comments.push({who:"Aiman Zulkifli",text:v,at:isoDay(0)});if(!S.mine.rewarded.includes("cmt"+h.id)){S.mine.rewarded.push("cmt"+h.id);addPoints(2,"Commented on a report");}save();render();toast("Comment posted");return;}if(e.target.id==="recForm")runAnalysis();if(e.target.id==="preForm")runPrebuild();});
 /* map drag */
