@@ -388,6 +388,15 @@ main>*{min-width:0}
 .hz .tl{margin:4px 0 2px}
 .fixline{font-size:.78rem;color:var(--muted)}
 
+/* report sheet */
+.repsheet{position:fixed;inset:0;z-index:30;background:rgba(30,10,14,.45);display:flex;align-items:flex-end;justify-content:center;animation:fadein .2s ease}
+.sheetpanel{background:var(--surface);width:100%;max-width:560px;border-radius:24px 24px 0 0;padding:20px max(16px,env(safe-area-inset-left,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:10px;animation:sheetup .28s var(--ease)}
+.sheetopt{display:flex;gap:14px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:18px;padding:14px;transition:border-color .2s,background .2s}
+.sheetopt:hover,.sheetopt:focus-visible{border-color:var(--brand);background:var(--brand-soft)}
+.sico{flex:none;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:var(--brand);color:var(--brand-ink)}
+@keyframes sheetup{from{transform:translateY(100%)}to{transform:none}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+
 /* motion: views rise in once per navigation; nothing loops */
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes navpop{from{transform:scale(.88)}to{transform:none}}
@@ -715,12 +724,13 @@ function streetSVG(type,after){
 }
 
 /* ---------- shell ---------- */
-const RES_TABS=[["home","Home",ico.home],["navigate","Navigate",ico.compass],["record","Record a walk",ico.rec],["reports","Community",ico.people],["rewards","Rewards",ico.gift],["profile","Profile",ico.user]];
+const RES_TABS=[["home","Home",ico.home],["navigate","Navigate",ico.compass],["report","Report",ico.rec],["reports","Community",ico.people],["rewards","Rewards",ico.gift],["profile","Profile",ico.user]];
 /* screens without their own nav button light up the button they belong to */
-const NAV_PARENT={map:"home",snap:"reports",walk:"navigate",walkdone:"navigate",walks:"profile",sample:"reports"};
+const NAV_PARENT={map:"home",record:"report",snap:"report",walk:"navigate",walkdone:"navigate",walks:"profile",sample:"reports"};
 let lastKey="";
 function render(){
   cancelAnimationFrame(P.raf);
+  closeReportSheet();
   const app=$("#app");
   if(!S.user){lastKey="";app.innerHTML=loginView();return;}
   if(isAdmin()){
@@ -736,7 +746,7 @@ function render(){
     const navTab=NAV_PARENT[S.tab]||S.tab;
     app.innerHTML=`<header class="top"><div class="wrap res"><div class="top-row"><div class="logo"><span class="logo-mark" style="color:var(--brand-ink)">${ico.walk}</span>WalkLens</div><div class="who"><button class="ptspill" data-tab="rewards" aria-label="WalkPoints: ${S.points}. Open Rewards">${ico.gift} <b class="mono">${(S.points||0).toLocaleString("en-MY")}</b> pts</button></div></div></div></header>
       <main class="wrap res res" id="main">${residentView()}</main>
-      <nav class="bnav" aria-label="Main"><div class="bnav-in">${RES_TABS.map(t=>`<button data-tab="${t[0]}" aria-label="${t[1]}" ${t[0]==="record"?'class="recbtn"':""} ${navTab===t[0]?'aria-current="page"':""}>${t[2]}${t[1]}${t[0]==="profile"&&unread?'<span class="dot" aria-label="New updates"></span>':""}</button>`).join("")}</div></nav>`;
+      <nav class="bnav" aria-label="Main"><div class="bnav-in">${RES_TABS.map(t=>`<button data-tab="${t[0]}" aria-label="${t[1]}" ${navTab===t[0]?'aria-current="page"':""}>${t[2]}${t[1]}${t[0]==="profile"&&unread?'<span class="dot" aria-label="New updates"></span>':""}</button>`).join("")}</div></nav>`;
   }
   const k=[isAdmin(),S.tab,S.openRoute].join("|"),m=$("#main");
   if(m&&k!==lastKey)m.classList.add("enter");
@@ -744,6 +754,18 @@ function render(){
   mountPlayer();
   mountPreviews();
 }
+/* one Report button, two ways to report: a whole walk on video, or one problem in a photo */
+function openReportSheet(){
+  closeReportSheet();
+  document.body.insertAdjacentHTML("beforeend",`<div id="repsheet" class="repsheet" data-act="closesheet"><div class="sheetpanel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <h2 id="sheetTitle">Report a problem</h2>
+    <button class="sheetopt" data-tab="snap"><span class="sico">${ico.pinpt}</span><span><strong>Snap a photo</strong><br><span class="faint">One problem, about 30 seconds. AI drafts the report.</span></span></button>
+    <button class="sheetopt" data-tab="record"><span class="sico">${ico.rec}</span><span><strong>Record a walk</strong><br><span class="faint">Film the whole route. AI finds every hazard on it.</span></span></button>
+    <button class="btn block ghost" data-act="closesheet">Cancel</button></div></div>`);
+  const f=document.querySelector("#repsheet .sheetopt");if(f)f.focus();
+}
+function closeReportSheet(){const o=document.getElementById("repsheet");if(o)o.remove();}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeReportSheet();});
 /* short muted looping preview of the first 10 s of the real walk video, shown on the route tile */
 function mountPreviews(){
   const still=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1511,6 +1533,8 @@ document.addEventListener("click",e=>{
   if(t.dataset.mode){S.nav.modes[t.dataset.mode]=!S.nav.modes[t.dataset.mode];save();render();return;}
   if(t.dataset.arrive){S.nav.arrive=t.dataset.arrive;save();render();return;}
   if(t.dataset.startwalk){startWalk(t.dataset.startwalk);return;}
+  if(t.dataset.act==="closesheet"){if(t===e.target||t.tagName==="BUTTON")closeReportSheet();return;}
+  if(t.dataset.tab==="report"){openReportSheet();return;}
   if(t.dataset.tab){if(t.dataset.tab==="map")MV={x:225,y:105,w:650};if(t.dataset.tab==="amap")MV={x:60,y:150,w:900};S.tab=t.dataset.tab;S.openRoute=null;S.sel=null;save();render();window.scrollTo(0,0);return;}
   if(t.dataset.sample){S.sampleIdx=t.dataset.sample;S.tab="sample";S.openRoute=null;save();render();window.scrollTo(0,0);return;}
   if(t.dataset.open){S.openRoute=t.dataset.open;S.tab=isAdmin()?"dash":"walks";save();render();window.scrollTo(0,0);return;}
