@@ -507,7 +507,7 @@ main.enter .bh .track i{transform-origin:left;animation:grow .8s var(--ease) .2s
 <script>
 (function(){
 "use strict";
-const KEY="walklens-demo-v4";
+const KEY="walklens-demo-v5";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
@@ -538,7 +538,13 @@ function seed(){
   return {
     user:null, tab:null, openRoute:null, afterFor:null, sel:null,
     layers:{hazards:true,routes:true,fixed:true},
-    notifs:[{id:1,text:"Welcome to WalkLens. Record a walk to get your first audit.",read:false,at:"Today"}],
+    /* starting state for the demo: a resident with a week of walks, a 6-day streak and a few updates */
+    notifs:[
+      {id:5,text:"A report you follow: \"Covered walkway ends at the rapidKL maintenance boundary\" is now sent to rapidKL.",read:false,at:"2 days ago"},
+      {id:4,text:"Your walking streak is 6 days. Keep it going!",read:false,at:"Yesterday"},
+      {id:3,text:"8 neighbours have confirmed the open drain near Masjid Jamek Cina Muslim Klang.",read:true,at:"Last week"},
+      {id:2,text:"Fixed: \"Walkway blocked by road barriers\" near the mosque car park. Thanks for reporting it.",read:true,at:"5 Oct"},
+      {id:1,text:"Welcome to WalkLens. Record a walk to get your first audit.",read:true,at:"26 Aug"}],
     users:[
       {id:"u1",name:"Aiman Zulkifli",role:"Resident",township:"Klang Jaya, Klang",walks:2,blocked:false},
       {id:"u2",name:"Nurul Huda",role:"Resident",township:"Klang Jaya, Klang",walks:1,blocked:false},
@@ -560,7 +566,7 @@ function seed(){
       {id:"h5",route:"r1",t:44,type:"walkway",short:"Unpaved ground",title:"No pedestrian path, only unpaved gravel ground",sev:"warn",fix:"Paved, lit footpath across the lot",cost:90000,walkers:450,confirms:4,status:"Pending review",box:[0.03,0.42,0.94,0.52]},
       {id:"h6",route:"r1",t:49,type:"blocked",short:"Lorry parking",title:"Walking route crosses a lorry parking area",sev:"danger",fix:"Fenced footpath separated from lorry parking",cost:60000,walkers:450,confirms:2,status:"Approved",box:[0.00,0.27,0.32,0.18]},
       {id:"h7",route:"r1",t:71,type:"walkway",short:"Broken sidewalk",title:"Sidewalk broken and barely visible",sev:"warn",fix:"Rebuild a continuous sidewalk with a kerb",cost:120000,walkers:400,confirms:3,status:"Pending review",box:[0.0,0.55,1.0,0.38]},
-      {id:"h8",route:"r1",t:80,type:"walkway",short:"Too close to traffic",title:"Narrow strip between guardrail and traffic, level with the road",sev:"danger",fix:"Widen the footpath and raise it above the road",cost:200000,walkers:400,confirms:7,status:"Approved",box:[0.10,0.45,0.55,0.55]},
+      {id:"h8",route:"r1",t:80,type:"walkway",short:"Too close to traffic",title:"Narrow strip between guardrail and traffic, level with the road",sev:"danger",fix:"Widen the footpath and raise it above the road",cost:200000,walkers:400,confirms:7,status:"In progress",box:[0.10,0.45,0.55,0.55]},
       {id:"h9",route:"r1",t:88,type:"walkway",short:"Sidewalk ends",title:"Sidewalk disappears, walkers on grass beside fast traffic",sev:"danger",fix:"Continue the footpath to the mosque entrance",cost:100000,walkers:400,confirms:5,status:"Pending review",box:[0.0,0.62,0.62,0.38]},
       {id:"h10",route:"r2",t:7,type:"blocked",short:"No footpath",title:"No footpath, walkers cut through a car park",sev:"warn",fix:"Marked pedestrian walkway through the car park",cost:15000,walkers:200,confirms:1,status:"Pending review",box:[0.0,0.48,1.0,0.5]},
       {id:"h11",route:"r2",t:11,type:"blocked",short:"Barriers",title:"Walkway blocked by road barriers",sev:"warn",fix:"Clear the barriers and open the walkway",cost:5000,walkers:200,confirms:2,status:"Fixed",box:[0.0,0.36,0.25,0.12]},
@@ -569,12 +575,14 @@ function seed(){
     ],
     prefs:{ehail:6,family:"Mum (Puan Rohani)"},
     /* demo walk history: the last four days, so the weekly totals and streak have something to show */
-    walksLog:[1,2,3,4].map(d=>{const dist=d%2?750:900,steps=Math.round(dist/0.75);return {date:isoDay(-d),from:d%2?"LRT Klang Jaya (SA23)":"LRT Bandar Bukit Tinggi",to:"Masjid Jamek Cina Muslim Klang",kind:d%2?"fastest":"safest",dist,steps,kcal:Math.round(steps*0.04),mins:Math.round(dist/1.3/60),rm:6,co2:+(dist/1000*0.17).toFixed(2),pts:10+Math.floor(dist/100),at:"1:05 pm"};}),
-    points:240,
-    pointsLog:[{pts:17,text:"Walk to Masjid Jamek Cina Muslim Klang",at:isoDay(-1)},{pts:20,text:"Report confirmed by the township team",at:isoDay(-2)},{pts:19,text:"Walk to Masjid Jamek Cina Muslim Klang",at:isoDay(-2)},{pts:184,text:"Earlier activity",at:isoDay(-30)}],
+    walksLog:[1,1,2,2,3,4,4,5,5,6].map((d,i)=>{const dist=i%2?772:755,steps=Math.round(dist/0.75);return {id:"seed"+i,date:isoDay(-d),from:i%2?"LRT Bandar Bukit Tinggi":"LRT Klang Jaya (SA23)",to:"Masjid Jamek Cina Muslim Klang",kind:i%2?"safest":"fastest",dist,steps,kcal:Math.round(steps*0.04),mins:Math.round(dist/1.3/60),rm:6,co2:+(dist/1000*0.17).toFixed(2),pts:10+Math.floor(dist/100),at:"1:05 pm"};}),
+    points:1240,
+    pointsLog:[{pts:17,text:"Walk to Masjid Jamek Cina Muslim Klang",at:isoDay(-1)},{pts:17,text:"Walk to Masjid Jamek Cina Muslim Klang",at:isoDay(-1)},{pts:20,text:"Report confirmed by the township team",at:isoDay(-2)},
+      {pts:17,text:"Walk to Masjid Jamek Cina Muslim Klang",at:isoDay(-2)},{pts:5,text:"Sent a photo report",at:isoDay(-3)},{pts:2,text:"Said a report affects you",at:isoDay(-4)},{pts:17,text:"Walk to Masjid Jamek Cina Muslim Klang",at:isoDay(-4)},
+      {pts:1145,text:"Walks and reports since August",at:isoDay(-7)}],
     lastWalk:null,fares:{},
     redeemed:[],buddy:[],alertOn:true,
-    follow:[],mine:{affects:[],avoid:[],rewarded:[],confirmed:[],disputed:[]},feedFilter:"all",openCmt:null,
+    follow:["h2","h11"],mine:{affects:[],avoid:[],rewarded:[],confirmed:[],disputed:[]},feedFilter:"all",openCmt:null,
     nav:{from:"LRT Klang Jaya (SA23)",to:"Masjid Jamek Cina Muslim Klang",modes:{rain:false,night:false,wheel:false},arrive:"13:15",map:false}
   };
 }
@@ -1823,7 +1831,7 @@ document.addEventListener("click",e=>{
     case "showpass":{const i=$("#lgPass"),on=i.type==="password";i.type=on?"text":"password";t.setAttribute("aria-pressed",on);t.setAttribute("aria-label",on?"Hide password":"Show password");return;}
     case "login":S.user=t.dataset.role;S.tab=null;S.openRoute=null;S.sel=null;MV={x:0,y:0,w:1000};break;
     case "logout":S.user=null;S.tab=null;S.openRoute=null;P.playing=false;WALK=null;clearInterval(walkTimer);SNAP=null;toast("Logged out");break;
-    case "reset":S=seed();P={route:null,t:0,playing:false,raf:0,last:0};MV={x:0,y:0,w:1000};toast("App data reset");break;
+    case "reset":S=seed();P={route:null,t:0,playing:false,raf:0,last:0};MV={x:0,y:0,w:1000};WALK=null;clearInterval(walkTimer);SNAP=null;FAREEDIT=false;MAINVIEW=null;LOGIN.role="resident";toast("App data reset");break;
     case "back":S.openRoute=null;P.playing=false;break;
     case "confirm":case "dispute":toggleConfirm(h,a);save();if($("#sheet")){refreshMap();return;}break;
     case "approve":setStatus(h,"Approved");toast("Approved and added to the fix-first list");break;
