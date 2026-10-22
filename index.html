@@ -409,6 +409,13 @@ main>*{min-width:0}
 .where-act{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .where-act svg{width:16px;height:16px}
 
+/* photo zoom */
+.rep-head img,.hz-img,.sheet-img,.tbl-img,.snap-img{cursor:zoom-in}
+.zoom{position:fixed;inset:0;z-index:40;background:rgba(15,6,8,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));animation:fadein .2s ease;cursor:zoom-out}
+.zoom img{max-width:100%;max-height:82vh;object-fit:contain;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.zoom p{color:#fff;font-weight:600;text-align:center;max-width:40ch}
+.zoom-x{position:absolute;top:max(14px,env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:1.1rem;font-weight:800}
+
 /* motion: views rise in once per navigation; nothing loops */
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes navpop{from{transform:scale(.88)}to{transform:none}}
@@ -742,7 +749,7 @@ const NAV_PARENT={map:"home",record:"report",snap:"report",walk:"navigate",walkd
 let lastKey="";
 function render(){
   cancelAnimationFrame(P.raf);
-  closeReportSheet();
+  closeReportSheet();closeZoom();
   /* every hazard needs its community fields, including after "Reset demo data" swaps in fresh seed data */
   S.hazards.forEach(fillHazard);
   const app=$("#app");
@@ -778,8 +785,16 @@ function openReportSheet(){
     <button class="btn block ghost" data-act="closesheet">Cancel</button></div></div>`);
   const f=document.querySelector("#repsheet .sheetopt");if(f)f.focus();
 }
+/* tap any hazard photo to see it full size */
+const ZOOM_SEL=".rep-head img,.hz-img,.sheet-img,.tbl-img,.snap-img";
+function openZoom(src,alt){
+  closeZoom();
+  document.body.insertAdjacentHTML("beforeend",`<div id="zoom" class="zoom" role="dialog" aria-modal="true" aria-label="${esc(alt||"Photo")}"><img src="${esc(src)}" alt="${esc(alt||"")}"><button class="zoom-x" data-act="closezoom" aria-label="Close photo">✕</button>${alt?`<p>${esc(alt.replace(/^(Video still|Photo): /,""))}</p>`:""}</div>`);
+  document.querySelector("#zoom .zoom-x").focus();
+}
+function closeZoom(){const z=document.getElementById("zoom");if(z)z.remove();}
 function closeReportSheet(){const o=document.getElementById("repsheet");if(o)o.remove();}
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeReportSheet();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeReportSheet();closeZoom();}});
 /* short muted looping preview of the first 10 s of the real walk video, shown on the route tile */
 function mountPreviews(){
   const still=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1567,6 +1582,8 @@ function openWatch(hid){const h=S.hazards.find(x=>x.id===hid);if(!h)return;
   S.openRoute=h.route;S.tab=isAdmin()?"dash":"walks";P.route=h.route;P.pending=Math.max(0,h.t-1);P.playing=false;save();render();
   const pl=$("#player");if(pl)pl.scrollIntoView({block:"start"});}
 document.addEventListener("click",e=>{
+  if(e.target.closest("#zoom")){closeZoom();return;}
+  const zi=e.target.closest(ZOOM_SEL);if(zi){openZoom(zi.currentSrc||zi.src,zi.alt);return;}
   const mapHit=e.target.closest("#mapsvg");
   if(mapHit&&dragMoved){dragMoved=false;return;}
   const psvg=e.target.closest("#pickersvg");
