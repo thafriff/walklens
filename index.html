@@ -305,7 +305,9 @@ main>*{min-width:0}
 .transit{display:flex;flex-direction:column;gap:8px}
 .trow{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;align-items:center}
 .trow .faint{grid-column:2/4}
-@media (max-width:380px){.ncards{grid-template-columns:1fr}}
+/* phones: keep Fastest and Safest side by side by stacking what is inside each card */
+@media (max-width:440px){.ncard{padding:10px;gap:5px}.nstats{grid-template-columns:1fr}.nstats div{display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+  .ncard-act .btn{flex:1 1 100%}.buddy{flex-direction:column;align-items:stretch;text-align:left}.eta b{font-size:1.5rem}.why{font-size:.82rem}}
 
 /* walk session */
 .walkhead{display:flex;flex-direction:column;gap:8px}
@@ -762,13 +764,13 @@ function loginView(){
   return `<div class="wrap res login"><div class="login-card">
     <div class="collage" aria-hidden="true"><img src="media/frames/t10.jpg" alt=""><img src="media/frames/t100.jpg" alt=""><img src="media/frames/t148.jpg" alt=""></div>
     <div class="logo" style="font-size:1.5rem"><span class="logo-mark" style="color:var(--brand-ink)">${ico.walk}</span>WalkLens</div>
-    <h1>AI audits for the walk to the station</h1>
-    <p class="muted">Residents record a walk. AI finds the hazards, pins them on the map and points to them in the video. The township team fixes the worst ones first.</p>
+    <h1>Your daily walking companion</h1>
+    <p class="muted">WalkLens gets you to the station safely, tracks your health and savings, and rewards you. Every walk helps fix the township.</p>
     <div class="list">
       <button class="acct" data-act="login" data-role="resident"><span class="avatar c-brand">AZ</span><span><strong>Sign in as a resident</strong><br><span class="muted">Aiman Zulkifli · Klang Jaya, Klang</span></span></button>
       <button class="acct" data-act="login" data-role="admin"><span class="avatar c-accent">SDP</span><span><strong>Sign in as an admin</strong><br><span class="muted">SDP township team · all townships</span></span></button>
     </div>
-    <p class="note">Demo build. The two Klang Jaya routes use a real walking video and real AI findings; costs, walker counts and statuses are demo estimates. The map is a simplified drawing, and new uploads get simulated results. Changes are saved in this browser only. <button class="btn sm ghost" data-act="reset">Reset demo data</button></p>
+    <p class="note">Demo build. The two Klang Jaya routes use a real walking video and real AI findings. Costs, walker counts, statuses, agencies, timetables, vouchers and health figures are demo data or estimates. The map is a simplified drawing, and new uploads get simulated results. Changes are saved in this browser only. <button class="btn sm ghost" data-act="reset">Reset demo data</button></p>
   </div></div>`;
 }
 
@@ -1117,6 +1119,24 @@ function profileView(){
 }
 
 /* admin views */
+/* Demo walks logged this week by the township's other residents, added to this demo resident's own log */
+const OTHERS_WEEK={walks:186,steps:268000,rm:1116,co2:30.5};
+function impactHTML(){
+  const w=weekStats(),walks=w.walks+OTHERS_WEEK.walks,steps=w.steps+OTHERS_WEEK.steps,rm=w.rm+OTHERS_WEEK.rm,co2=w.co2+OTHERS_WEEK.co2;
+  return `<section class="panel impact"><div class="head"><div><h2>Community impact this week</h2><p class="faint">${walks} walks logged by residents. Estimates, including demo walks.</p></div></div>
+   <div class="kpis"><div class="kpi"><div class="n">${Math.round(steps/1000).toLocaleString("en-MY")}k</div><div class="l">Residents' steps</div></div>
+   <div class="kpi good"><div class="n">RM ${Math.round(rm).toLocaleString("en-MY")}</div><div class="l">Saved vs e-hailing</div></div>
+   <div class="kpi good"><div class="n">${co2.toFixed(1)} kg</div><div class="l">CO2 saved vs driving</div></div></div></section>`;
+}
+function agencyHTML(){
+  const live=S.hazards.filter(h=>h.status!=="Rejected"),names=[...new Set(live.map(h=>h.agency))].sort();
+  const rows=names.map(a=>{const mine=live.filter(h=>h.agency===a),fixed=mine.filter(h=>h.status==="Fixed"),open=mine.filter(h=>h.status!=="Fixed");
+    const avg=xs=>xs.length?Math.round(xs.reduce((t,h)=>t+daysOpen(h),0)/xs.length):null;
+    return {a,open:open.length,fixed:fixed.length,fix:avg(fixed),age:avg(open)};}).sort((x,y)=>y.open-x.open);
+  return `<section class="panel tblwrap"><h2>Agency scoreboard</h2><p class="faint" style="margin-bottom:8px">Who each report is waiting on. Agencies are the likely owner, to be confirmed. Dates are demo data.</p>
+   <table><thead><tr><th>Agency</th><th>Open</th><th>Fixed</th><th>Avg days to fix</th><th>Avg days open</th></tr></thead><tbody>
+   ${rows.map(r=>`<tr><td><strong>${esc(r.a)}</strong></td><td class="n">${r.open}</td><td class="n">${r.fixed}</td><td class="n">${r.fix==null?"–":r.fix}</td><td class="n">${r.age==null?"–":r.age}</td></tr>`).join("")}</tbody></table></section>`;
+}
 function dashView(){
   const live=S.hazards.filter(h=>h.status!=="Rejected");const fixed=live.filter(h=>h.status==="Fixed").length;
   const avg=Math.round(S.routes.reduce((a,r)=>a+scoreOf(r.id),0)/S.routes.length);
@@ -1125,6 +1145,7 @@ function dashView(){
   return `<div><h1>Township overview</h1><p class="muted">Klang Jaya, Klang · all audited walking routes</p></div>
   <div class="kpis"><div class="kpi"><div class="n">${S.routes.length}</div><div class="l">Routes audited</div></div><div class="kpi"><div class="n">${live.length}</div><div class="l">Hazards found</div></div>
   <div class="kpi"><div class="n">${fixed}</div><div class="l">Fixed (${live.length?Math.round(fixed/live.length*100):0}%)</div></div><div class="kpi"><div class="n">${avg}</div><div class="l">Average walk score</div></div></div>
+  ${impactHTML()}
   ${pend?`<div class="note" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span><strong>${pend} AI finding${pend===1?"":"s"}</strong> waiting for your review.</span><button class="btn sm primary" data-tab="review">Review now</button></div>`:""}
   <div class="grid2">
    <section class="panel"><h2>Routes by walk score</h2><p class="faint" style="margin-bottom:12px">Lowest first. Tap to open the audit and video.</p>
@@ -1132,6 +1153,7 @@ function dashView(){
    <section class="panel"><h2>Hazards by status</h2><p class="faint" style="margin-bottom:12px">Where each AI finding is in the fix process.</p>
     <div class="bars-h">${byStatus.map(([st,n])=>`<div class="bh"><span>${st}</span><span class="track"><i style="width:${n/maxS*100}%;background:var(--brand)"></i></span><span class="mono">${n}</span></div>`).join("")}</div></section>
   </div>
+  ${agencyHTML()}
   <button class="btn" data-tab="amap" style="align-self:flex-start">${ico.map} Open township map</button>`;
 }
 function reviewView(){
@@ -1145,13 +1167,13 @@ function reviewView(){
 function fixView(){
   const list=S.hazards.filter(h=>!["Pending review","Rejected"].includes(h.status)).sort((a,b)=>(a.status==="Fixed")-(b.status==="Fixed")||priority(b)-priority(a));
   const af=S.afterFor&&S.hazards.find(h=>h.id===S.afterFor);
-  return `<div><h1>Fix-first list</h1><p class="muted">Approved hazards ranked by danger × people walking there × resident confirmations.</p></div>
+  return `<div><h1>Fix-first list</h1><p class="muted">Approved hazards ranked by danger × people walking there × resident backing (confirmations, "affects me too" and "I avoid this route").</p></div>
   ${af?`<section class="panel" id="afterPanel" style="display:flex;flex-direction:column;gap:10px"><div class="head"><h2>Fix preview: ${esc(af.fix)}</h2><button class="btn sm ghost" data-act="closeAfter">Close</button></div>
    <div class="ba"><figure><figcaption>Now</figcaption>${streetSVG(af.type,false)}</figure><figure><figcaption>After the fix</figcaption>${streetSVG(af.type,true)}</figure></div>
    <p class="faint">Demo illustration. The full version redraws the real frame from the walk video with the fix in place.</p></section>`:""}
-  <section class="panel tblwrap"><table><thead><tr><th>#</th><th>Problem → fix</th><th>Route</th><th>Walkers/day</th><th>Est. cost</th><th>Status</th><th></th></tr></thead><tbody>
+  <section class="panel tblwrap"><table><thead><tr><th>#</th><th>Problem → fix</th><th>Route</th><th>Walkers/day</th><th>Affects me too</th><th>Avoid route</th><th>Est. cost</th><th>Status</th><th></th></tr></thead><tbody>
   ${list.map((h,i)=>`<tr><td class="n"><strong>${i+1}</strong></td><td style="min-width:240px">${hImg(h)?`<img class="tbl-img" src="${hImg(h)}" alt="" loading="lazy">`:""}${sevChip(h.sev)} <strong>${esc(h.title)}</strong><div class="faint">→ ${esc(h.fix)}</div></td>
-   <td>${esc(route(h.route).name)}</td><td class="n">${h.walkers}</td><td class="n">${rm(h.cost)}</td>
+   <td>${esc(route(h.route).name)}</td><td class="n">${h.walkers}</td><td class="n">${h.affects}</td><td class="n">${h.avoid}</td><td class="n">${rm(h.cost)}</td>
    <td><label for="st-${h.id}" style="position:absolute;left:-9999px">Status</label><select id="st-${h.id}" data-status="${h.id}" style="min-width:150px">${STATUSES.slice(1,5).map(s=>`<option ${s===h.status?"selected":""}>${s}</option>`).join("")}</select></td>
    <td style="white-space:nowrap">${h.snap?"":`<button class="btn sm" data-watch="${h.id}">${ico.play} Video</button> `}<button class="btn sm" data-act="after" data-id="${h.id}">Preview fix</button></td></tr>`).join("")}
   </tbody></table></section>
