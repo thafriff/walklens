@@ -358,6 +358,22 @@ main>*{min-width:0}
 @keyframes indet{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
 .bar>i.indet{width:40%;animation:indet 1.1s ease-in-out infinite}
 
+/* rewards and safety */
+.ptsbox{gap:2px}.ptsbox .big{font-size:2.6rem;font-weight:800;line-height:1.1}
+.voucher{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.voucher:last-child{border-bottom:0}
+.code{margin-top:4px;font-size:.85rem;color:var(--ok);font-weight:700}
+.earn{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.earn:last-child{border-bottom:0}
+.earn .pos{color:var(--ok)} .earn .neg{color:var(--danger)}
+.btn[disabled]{opacity:.55;cursor:not-allowed;transform:none}
+.buddy{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.8rem;font-weight:600;background:var(--sunk);border-radius:12px;padding:6px 6px 6px 10px}
+.alert-line{font-size:.8rem;font-weight:700;color:var(--danger)}
+.livealert{display:flex;flex-direction:column;gap:6px;align-items:flex-start;background:var(--danger-soft);border-radius:var(--r);padding:14px;color:var(--fg)}
+.share.on{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.safe{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.safe blockquote{margin:0;padding:10px 12px;border-radius:14px;background:var(--sunk);font-weight:600}
+
 /* motion: views rise in once per navigation; nothing loops */
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes navpop{from{transform:scale(.88)}to{transform:none}}
@@ -438,6 +454,7 @@ function seed(){
     points:240,
     pointsLog:[{pts:17,text:"Walk to Masjid Jamek Cina Muslim Klang",at:isoDay(-1)},{pts:20,text:"Report confirmed by the township team",at:isoDay(-2)},{pts:19,text:"Walk to Masjid Jamek Cina Muslim Klang",at:isoDay(-2)},{pts:184,text:"Earlier activity",at:isoDay(-30)}],
     lastWalk:null,
+    redeemed:[],buddy:[],alertOn:true,
     follow:[],mine:{affects:[],avoid:[],rewarded:[]},feedFilter:"all",openCmt:null,
     nav:{from:"LRT Klang Jaya (SA23)",to:"Masjid Jamek Cina Muslim Klang",modes:{rain:false,night:false,wheel:false},arrive:"13:15",map:false}
   };
@@ -484,6 +501,7 @@ const ico={
  map:'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z M9 4v14 M15 6v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
  people:'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2.5 20c.7-3.6 3.2-5.5 6.5-5.5s5.8 1.9 6.5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="17.5" cy="9" r="2.8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M17.5 14.2c2.3.2 3.7 1.7 4.2 4.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
  compass:'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 8.5l-2 5-5 2 2-5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
+ gift:'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 13v7h14v-7M12 8v12M12 8c-1.5-3-5-4-5.5-1.8C6 8 9 8 12 8zm0 0c1.5-3 5-4 5.5-1.8C18 8 15 8 12 8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
  user:'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
  pin:'<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12z" fill="currentColor"/><circle cx="12" cy="10" r="2.6" fill="var(--brand)"/></svg>',
  locate:'<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="var(--brand-ink)"/><circle cx="12" cy="12" r="8" fill="none" stroke="var(--brand-ink)" stroke-width="2"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke="var(--brand-ink)" stroke-width="2"/></svg>',
@@ -675,9 +693,9 @@ function streetSVG(type,after){
 }
 
 /* ---------- shell ---------- */
-const RES_TABS=[["home","Home",ico.home],["navigate","Navigate",ico.compass],["reports","Community",ico.people],["map","Map",ico.map],["profile","Profile",ico.user]];
+const RES_TABS=[["home","Home",ico.home],["navigate","Navigate",ico.compass],["reports","Community",ico.people],["rewards","Rewards",ico.gift],["profile","Profile",ico.user]];
 /* screens without their own nav button light up the button they belong to */
-const NAV_PARENT={snap:"reports",walk:"navigate",walkdone:"navigate",walks:"profile",record:"profile",sample:"reports"};
+const NAV_PARENT={map:"home",snap:"reports",walk:"navigate",walkdone:"navigate",walks:"profile",record:"profile",sample:"reports"};
 let lastKey="";
 function render(){
   cancelAnimationFrame(P.raf);
@@ -691,7 +709,7 @@ function render(){
       <nav class="tabs" aria-label="Sections">${tabs.map(t=>`<button class="tab" data-tab="${t[0]}" ${S.tab===t[0]?'aria-current="page"':""}>${t[1]}${t[2]?`<span class="count">${t[2]}</span>`:""}</button>`).join("")}</nav></div></header>
       <main class="wrap adm" id="main">${adminView()}</main>`;
   }else{
-    if(!S.tab||!["home","navigate","snap","walk","walkdone","walks","map","profile","record","reports","sample"].includes(S.tab))S.tab="home";
+    if(!S.tab||!["home","navigate","rewards","snap","walk","walkdone","walks","map","profile","record","reports","sample"].includes(S.tab))S.tab="home";
     const unread=S.notifs.filter(n=>!n.read).length;
     const navTab=NAV_PARENT[S.tab]||S.tab;
     app.innerHTML=`<header class="top"><div class="wrap res"><div class="top-row"><div class="logo"><span class="logo-mark" style="color:var(--brand-ink)">${ico.walk}</span>WalkLens</div><div class="who"><span class="role-pill">Resident</span></div></div></div></header>
@@ -721,6 +739,7 @@ function residentView(){
   if(S.tab==="navigate")return navigateView();
   if(S.tab==="walk")return walkView();
   if(S.tab==="snap")return snapView();
+  if(S.tab==="rewards")return rewardsView();
   if(S.tab==="walkdone")return walkDoneView();
   if(S.tab==="reports")return reportsView();
   if(S.tab==="sample")return sampleView();
@@ -904,12 +923,13 @@ function allPaths(from,to){
 }
 function pathInfo(edges){
   const m=S.nav.modes,speed=m.wheel?WHEEL_SPEED:WALK_SPEED;
-  let walkM=0,cost=0,covered=0,train=0;const hz=[];
+  let walkM=0,cost=0,covered=0,train=0,alert=false;const hz=[];
   edges.forEach(e=>{
     if(e.train){train+=e.mins;return;}
     const r=route(e.route),open=hazOf(e.route).filter(h=>h.status!=="Fixed");
     walkM+=r.len;covered+=r.len*e.covered;hz.push(...open);
     cost+=r.len+open.reduce((a,h)=>a+PEN[h.sev],0);
+    if(S.alertOn&&e.route===ALERT.route){cost+=ALERT.extra;alert=true;}
     if(m.rain)cost+=r.len*(1-e.covered)*.5;
     if(m.night)cost+=r.len*(1-e.lit)*.5;
     if(m.wheel)cost+=open.filter(h=>["crossing","ramp","blocked"].includes(h.type)).length*250;
@@ -917,7 +937,7 @@ function pathInfo(edges){
   const wait=train?nextDeparture(7).mins:0;
   const mins=Math.round(walkM/speed/60+train+wait);
   const danger=hz.filter(h=>h.sev==="danger").length,warn=hz.length-danger;
-  return {edges,walkM,cost,mins,train,wait,hz,danger,
+  return {edges,walkM,cost,mins,train,wait,hz,danger,alert,
     score:walkM?Math.max(5,100-danger*22-warn*9):100,
     covered:walkM?Math.round(covered/walkM*100):100,
     routes:edges.filter(e=>!e.train).map(e=>e.route),
@@ -957,7 +977,9 @@ function navCard(p,kind,other){
    <dl class="nstats"><div><dt>Walk</dt><dd>${(p.walkM/1000).toFixed(2)} km</dd></div><div><dt>Hazards</dt><dd>${p.hz.length}</dd></div><div><dt>Covered</dt><dd>${p.covered}%</dd></div></dl>
    ${p.via?`<p class="faint">${esc(p.via)}, then walk</p>`:""}
    <p class="why">${esc(reasonFor(p,other,kind))}</p>
+   ${p.alert?`<p class="alert-line">Flooding reported on this route</p>`:""}
    <p class="faint">Leave by <strong>${leaveBy(p.mins)}</strong></p>
+   ${p.walkM&&BUDDIES[kind==="only"?"safest":kind]?(()=>{const b=BUDDIES[kind==="only"?"safest":kind],joined=S.buddy.includes(kind);return `<div class="buddy"><span>${b.n+(joined?1:0)} residents walking this route on ${b.when}</span><button class="btn sm ${joined?"":"ghost"}" data-buddy="${kind}" aria-pressed="${joined}">${joined?"Joined":"Join"}</button></div>`;})():""}
    <div class="ncard-act"><button class="btn sm primary" data-startwalk="${kind}">Start walk</button>${p.routes[0]?`<button class="btn sm ghost" data-open="${p.routes[0]}">See hazards</button>`:""}</div></section>`;
 }
 function navigateView(){
@@ -968,6 +990,7 @@ function navigateView(){
   if(plan.none)cards=`<section class="panel"><h3>No verified route between these places yet</h3><p class="muted">Nobody has recorded and audited a walk here. Record this walk to help your neighbours.</p><div><button class="btn primary" data-tab="record">Record this walk</button></div></section>`;
   else if(plan.same)cards=`<div class="ncards one">${navCard(plan.safest,"only",null)}</div>${plan.safest.walkM?'<p class="note">No verified safer route yet. Record this walk to help.</p>':'<p class="note">Both stations are on the LRT Shah Alam Line, so the train is the safest way.</p>'}`;
   else cards=`<div class="ncards">${navCard(plan.fastest,"fastest",plan.safest)}${navCard(plan.safest,"safest",plan.fastest)}</div>`;
+  const alertBox=S.alertOn&&!plan.none&&[plan.fastest,plan.safest].some(p=>p&&p.alert)?`<section class="livealert" role="status"><span class="chip c-danger">Live alert · demo</span><strong>${esc(ALERT.text)}</strong><p>On the Klang Jaya walk. We've switched you to the covered path via LRT Bandar Bukit Tinggi.</p><button class="btn sm" data-act="alertoff">Dismiss</button></section>`:"";
   return `<div><h1>Navigate</h1><p class="muted">Pick where you're going. WalkLens compares the fastest walk with the safest one, using routes your neighbours have audited.</p></div>
   <section class="panel navform">
     <datalist id="navPlaces">${places.map(p=>`<option value="${esc(p)}"></option>`).join("")}</datalist>
@@ -980,7 +1003,8 @@ function navigateView(){
     <div class="arrive"><div class="field"><label for="navArrive">Arrive by</label><input id="navArrive" type="time" value="${esc(n.arrive)}"></div>
       <button class="mchip" data-arrive="13:15" aria-pressed="${n.arrive==="13:15"}">Friday prayers 1:15 pm</button></div>
   </section>
-  ${cards}
+  ${alertBox}${cards}
+  ${S.alertOn?"":`<div><button class="btn sm ghost" data-act="alerton">Show a demo live alert</button></div>`}
   <section class="panel transit"><h3>Next departures</h3>
     <div class="trow"><span class="chip c-brand">LRT</span><span>Shah Alam Line at Klang Jaya</span><strong class="mono">${train.mins} min</strong><span class="faint">${clock(train.at)}, then ${clock(train.then)}</span></div>
     <div class="trow"><span class="chip c-accent">Bus</span><span>Feeder bus at Klang Jaya</span><strong class="mono">${bus.mins} min</strong><span class="faint">${clock(bus.at)}, then ${clock(bus.then)}</span></div>
@@ -1085,7 +1109,9 @@ function profileView(){
   return `<section class="panel" style="display:flex;gap:14px;align-items:center"><span class="avatar c-brand">AZ</span><div><h2>Aiman Zulkifli</h2><p class="faint">Klang Jaya, Klang · ${S.users[0].walks} walks recorded</p></div></section>
   <section class="panel settings"><h2>Settings</h2>
     <div class="field"><label for="prefEhail">Your usual e-hailing fare for this trip (RM)</label><input id="prefEhail" type="number" min="0" step="0.5" inputmode="decimal" value="${esc(S.prefs.ehail)}"></div>
-    <p class="faint">Used to work out how much you save by walking.</p></section>
+    <p class="faint">Used to work out how much you save by walking.</p>
+    <div class="field"><label for="prefFamily">Safe Arrival contact</label><input id="prefFamily" type="text" maxlength="60" value="${esc(S.prefs.family)}"></div>
+    <p class="faint">Gets a message when you arrive, if you share a walk. Demo only.</p></section>
   <section class="panel"><h2>Updates</h2>${list||`<p class="empty">No updates yet.</p>`}</section>
   <div class="list"><button class="btn block" data-tab="walks">${ico.list} My walks</button><button class="btn block" data-tab="map">${ico.map} Township map</button><button class="btn block" data-act="logout">Switch account</button><button class="btn block ghost" data-act="reset">Reset demo data</button></div>`;
 }
@@ -1215,6 +1241,7 @@ function walkView(){
   <div class="wstats"><div class="kpi"><div class="n mono" id="wTime">0:00</div><div class="l">Time</div></div><div class="kpi"><div class="n mono"><span id="wDist">0</span> m</div><div class="l">of ${WALK.p.walkM} m</div></div>
    <div class="kpi"><div class="n mono" id="wSteps">0</div><div class="l">Steps (estimate)</div></div><div class="kpi"><div class="n mono" id="wKcal">0</div><div class="l">kcal (estimate)</div></div></div>
   <section class="panel"><h2>Coming up</h2><div id="wNext" class="list" style="gap:8px">${upcomingHTML()}</div></section>
+  <button class="btn block share ${WALK.share?"on":""}" data-act="sharewalk" aria-pressed="${WALK.share}">${WALK.share?"Sharing your walk with "+esc(S.prefs.family):"Share with family"}</button>
   <div class="list"><button class="btn primary block" data-act="finishwalk">I've arrived</button>
    <button class="btn block" data-tab="snap">${ico.video.replace(/var\(--brand\)/g,"currentColor").replace('width="34" height="34"','width="18" height="18"')} Report a problem on the way</button></div>
   <p class="faint">Demo: the walk plays 30 times faster than real time.</p>`;
@@ -1239,6 +1266,7 @@ function walkDoneView(){
    <div class="kpi good"><div class="n mono">RM ${w.rm.toFixed(2)}</div><div class="l">Saved vs e-hailing</div></div>
    <div class="kpi good"><div class="n mono">${w.co2} kg</div><div class="l">CO2 saved vs driving</div></div>
    <div class="kpi pts"><div class="n mono">+${w.pts}</div><div class="l">WalkPoints</div></div></div>
+  ${w.shared?`<section class="panel safe"><span class="chip c-ok">Safe Arrival</span><p>Message to ${esc(S.prefs.family)}:</p><blockquote>Aiman arrived safely at ${esc(w.to)}, ${esc(w.at)}</blockquote><p class="faint">Demo. Nothing was actually sent.</p></section>`:""}
   <p class="faint">Steps use 0.75 m per step and calories 0.04 kcal per step. Money saved uses your e-hailing fare of RM ${w.rm.toFixed(2)}, which you can change in Profile.</p>
   <div class="list"><button class="btn primary block" data-tab="home">Back to Home</button><button class="btn block" data-tab="navigate">Plan another walk</button></div>`;
 }
@@ -1315,6 +1343,39 @@ function sendSnap(){
   SNAP=null;S.tab="reports";S.feedFilter="following";save();render();window.scrollTo(0,0);toast("Report sent. +5 WalkPoints");
 }
 
+/* ---------- rewards ---------- */
+/* demo vouchers; shop names are placeholders for SDP township partners */
+const VOUCHERS=[
+  {id:"v1",shop:"Township kopitiam (demo shop)",offer:"RM3 off any drink",pts:120},
+  {id:"v2",shop:"SDP township parking",offer:"RM5 off parking",pts:200},
+  {id:"v3",shop:"Shoplot bakery (demo shop)",offer:"Free kuih set",pts:150},
+  {id:"v4",shop:"Township pharmacy (demo shop)",offer:"RM10 off a health check",pts:400}
+];
+const EARN=[["Finish a walk","10 + 1 per 100 m"],["Send a photo report","5"],["Report confirmed by the township team","20"],["Say a report affects you, flag a route or comment","2 each"]];
+function rewardsView(){
+  const pts=S.points||0;
+  return `<div><h1>Rewards</h1><p class="muted">Earn WalkPoints for walking and for helping fix the township. Spend them at township shops.</p></div>
+  <section class="hero ptsbox"><p>Your WalkPoints</p><div class="big mono">${pts.toLocaleString("en-MY")}</div><p>${S.redeemed.length} voucher${S.redeemed.length===1?"":"s"} redeemed</p></section>
+  <section class="panel"><h2>Vouchers</h2><p class="faint">Demo vouchers. Real partners would be SDP township shops.</p>
+   <div class="list" style="margin-top:10px">${VOUCHERS.map(v=>{const got=S.redeemed.find(x=>x.id===v.id);
+     return `<div class="voucher"><div style="min-width:0"><strong>${esc(v.offer)}</strong><div class="faint">${esc(v.shop)}</div>${got?`<div class="code mono">Code ${esc(got.code)}</div>`:""}</div>
+       ${got?'<span class="chip c-ok">Redeemed</span>':pts>=v.pts?`<button class="btn sm primary" data-redeem="${v.id}">${v.pts} pts</button>`:`<button class="btn sm" disabled>Need ${v.pts-pts} more</button>`}</div>`;}).join("")}</div></section>
+  <section class="panel"><h2>How to earn</h2><div class="list" style="gap:6px;margin-top:8px">${EARN.map(([a,b])=>`<div class="earn"><span>${a}</span><strong class="mono">+${b}</strong></div>`).join("")}</div></section>
+  <section class="panel"><h2>Points history</h2>${S.pointsLog.map(l=>`<div class="earn"><span>${esc(l.text)}<br><span class="faint">${fmtDate(l.at)}</span></span><strong class="mono ${l.pts<0?"neg":"pos"}">${l.pts>0?"+":""}${l.pts}</strong></div>`).join("")}</section>`;
+}
+function redeem(id){
+  const v=VOUCHERS.find(x=>x.id===id);if(!v||S.points<v.pts||S.redeemed.some(x=>x.id===id))return;
+  const code="WL-"+(hash(id+Date.now())%9000+1000);
+  S.redeemed.push({id,code,at:isoDay(0)});addPoints(-v.pts,"Redeemed: "+v.offer);
+  toast("Redeemed. Show code "+code+" at the counter.");
+}
+/* ---------- safety: walk buddies and live alerts (demo data) ---------- */
+const BUDDIES={fastest:{n:3,when:"Friday at 12:45"},safest:{n:2,when:"Friday at 12:40"}};
+/* A demo alert on the Klang Jaya walk. The real version would come from residents' live reports and
+   council or rapidKL notices; while it is active the planner adds a heavy cost to that piece, so the
+   recommended route moves to the covered path via Bandar Bukit Tinggi. */
+const ALERT={route:"r1",text:"Flooding at the underpass, reported 10 min ago",extra:2000};
+
 /* ---------- simulated AI pipeline ---------- */
 function makePts(a,b,R){
   const pts=[a];for(let i=1;i<5;i++){const f=i/5;pts.push([a[0]+(b[0]-a[0])*f+(R()-.5)*50,a[1]+(b[1]-a[1])*f+(R()-.5)*50]);}pts.push(b);
@@ -1369,7 +1430,7 @@ document.addEventListener("click",e=>{
   if(mapHit&&dragMoved){dragMoved=false;return;}
   const psvg=e.target.closest("#pickersvg");
   if(psvg){const pt=psvg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const m=pt.matrixTransform(psvg.getScreenCTM().inverse());const p=[Math.round(m.x),Math.round(m.y)];const n=placeName(p);setPoint(n?PLACES[n].slice():p,n);return;}
-  const t=e.target.closest("[data-tab],[data-open],[data-sample],[data-mode],[data-arrive],[data-startwalk],[data-feed],[data-snapsample],[data-react],[data-cmt],[data-follow],[data-act],[data-seek],[data-watch],[data-pin],[data-cluster],[data-rsel],[data-layer],[data-place],[data-pmode],[data-pplace],#pp");if(!t)return;
+  const t=e.target.closest("[data-tab],[data-open],[data-sample],[data-mode],[data-arrive],[data-startwalk],[data-feed],[data-redeem],[data-buddy],[data-snapsample],[data-react],[data-cmt],[data-follow],[data-act],[data-seek],[data-watch],[data-pin],[data-cluster],[data-rsel],[data-layer],[data-place],[data-pmode],[data-pplace],#pp");if(!t)return;
   if(t.id==="pp"){setPlaying(!P.playing);return;}
   if(t.dataset.pmode){REC.mode=t.dataset.pmode;refreshPicker();return;}
   if(t.dataset.pplace){setPoint(PLACES[t.dataset.pplace].slice(),t.dataset.pplace);return;}
@@ -1380,6 +1441,8 @@ document.addEventListener("click",e=>{
   if(t.dataset.rsel){S.sel={kind:"r",id:t.dataset.rsel};refreshMap();return;}
   if(t.dataset.layer){S.layers[t.dataset.layer]=!S.layers[t.dataset.layer];t.setAttribute("aria-pressed",S.layers[t.dataset.layer]);save();refreshMap();return;}
   if(t.dataset.place){const p=PLACES[t.dataset.place];mapSearch="";const r=$(".mresults");if(r)r.remove();$("#msearch").value="";zoomTo(p[0],p[1],420);toast(t.dataset.place);return;}
+  if(t.dataset.redeem){redeem(t.dataset.redeem);save();render();return;}
+  if(t.dataset.buddy){const b=S.buddy,i=b.indexOf(t.dataset.buddy);if(i>=0)b.splice(i,1);else{b.push(t.dataset.buddy);toast("You've joined. Meet at the station exit 5 minutes before.");}save();render();return;}
   if(t.dataset.snapsample){const x=SNAP_SAMPLES[+t.dataset.snapsample];runSnap(x.img,{hint:x.type,name:x.img,size:0});return;}
   if(t.dataset.feed){S.feedFilter=t.dataset.feed;save();render();return;}
   if(t.dataset.react){react(t.dataset.react,t.dataset.id);save();render();return;}
@@ -1403,6 +1466,9 @@ document.addEventListener("click",e=>{
     case "reject":setStatus(h,"Rejected");toast("Rejected");break;
     case "after":S.afterFor=id;save();render();{const p=$("#afterPanel");if(p)p.scrollIntoView({behavior:"smooth",block:"start"});}return;
     case "closeAfter":S.afterFor=null;break;
+    case "sharewalk":if(WALK){WALK.share=!WALK.share;toast(WALK.share?"Sharing with "+S.prefs.family+". They'll know when you arrive.":"Stopped sharing");render();}return;
+    case "alertoff":S.alertOn=false;break;
+    case "alerton":S.alertOn=true;break;
     case "snapretake":SNAP=null;break;
     case "finishwalk":if(WALK)WALK.dist=WALK.p.walkM;finishWalk();return;
     case "navswap":[S.nav.from,S.nav.to]=[S.nav.to,S.nav.from];break;
@@ -1426,6 +1492,7 @@ document.addEventListener("change",e=>{
   if(el.id==="pseek"){seek(+el.value);return;}
   if(el.id==="navFrom"||el.id==="navTo"){S.nav[el.id==="navFrom"?"from":"to"]=el.value.trim();save();render();return;}
   if(el.id==="snapFile"&&el.files[0]){const f=el.files[0];shrinkPhoto(f).then(img=>runSnap(img,{name:f.name,size:f.size})).catch(()=>toast("That photo couldn't be read. Try another one."));return;}
+  if(el.id==="prefFamily"){S.prefs.family=el.value.trim()||"Family";save();toast("Contact saved");return;}
   if(el.id==="prefEhail"){const v=parseFloat(el.value);S.prefs.ehail=isFinite(v)&&v>=0?v:6;save();toast("Fare saved");return;}
   if(el.id==="navArrive"){S.nav.arrive=el.value||"13:15";save();render();return;}
   if(el.dataset.status){const h=S.hazards.find(x=>x.id===el.dataset.status);setStatus(h,el.value);save();render();toast("Status updated, residents notified");}
